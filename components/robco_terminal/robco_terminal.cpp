@@ -14,7 +14,13 @@ static const uint8_t TERMINAL_FONT[128][16] = {
 };
 
 void RobCoTerminal::setup() {
+  // Basic Arduino Serial for debugging
+  Serial.begin(115200);
+  Serial.println("=== RobCo Terminal Setup Starting ===");
+  
   ESP_LOGCONFIG(TAG, "Setting up RobCo Terminal...");
+  ESP_LOGI(TAG, "RobCo Terminal setup starting");
+  Serial.println("ESP logs initialized");
   
   this->current_state_ = TerminalState::BOOTING;
   this->boot_complete_ = false;
@@ -26,28 +32,57 @@ void RobCoTerminal::setup() {
   this->last_cursor_toggle_ = millis();
   this->current_menu_ = &this->main_menu_;
   
+  Serial.println("State variables initialized");
+  ESP_LOGI(TAG, "RobCo Terminal state initialized");
+  
   // Initialize screen buffer
   this->screen_buffer_.resize(TerminalFont::LINES_PER_SCREEN);
+  Serial.printf("Screen buffer initialized with %d lines\n", TerminalFont::LINES_PER_SCREEN);
+  ESP_LOGI(TAG, "Screen buffer initialized with %d lines", TerminalFont::LINES_PER_SCREEN);
   
   if (this->boot_sequence_) {
+    Serial.println("Initializing boot sequence");
+    ESP_LOGI(TAG, "Initializing boot sequence");
     this->init_boot_sequence();
   } else {
+    Serial.println("Skipping boot sequence, going directly to main menu");
+    ESP_LOGI(TAG, "Skipping boot sequence, going directly to main menu");
     this->boot_complete_ = true;
     this->current_state_ = TerminalState::MAIN_MENU;
   }
   
-  // Set up display update callback - remove this for now as it needs different integration
-  // if (this->display_) {
-  //   this->display_->set_writer([this](display::DisplayBuffer &it) {
-  //     this->render_display(it);
-  //   });
-  // }
+  // Check if display is connected
+  if (this->display_) {
+    Serial.println("Display connected successfully");
+    ESP_LOGI(TAG, "Display connected successfully");
+  } else {
+    Serial.println("ERROR: Display not connected!");
+    ESP_LOGE(TAG, "Display not connected!");
+  }
   
+  Serial.println("=== RobCo Terminal Setup Complete ===");
   ESP_LOGCONFIG(TAG, "RobCo Terminal setup complete");
+  ESP_LOGI(TAG, "RobCo Terminal setup finished successfully");
 }
 
 void RobCoTerminal::loop() {
+  static uint32_t last_debug_log = 0;
+  static uint32_t last_serial_debug = 0;
   uint32_t now = millis();
+  
+  // Serial debug every 10 seconds
+  if (now - last_serial_debug > 10000) {
+    Serial.printf("[%lu] RobCo Terminal loop - state: %d, boot_complete: %s\n", 
+                  now, (int)this->current_state_, this->boot_complete_ ? "true" : "false");
+    last_serial_debug = now;
+  }
+  
+  // Debug logging every 5 seconds
+  if (now - last_debug_log > 5000) {
+    ESP_LOGI(TAG, "RobCo Terminal loop running - state: %d, boot_complete: %s", 
+             (int)this->current_state_, this->boot_complete_ ? "true" : "false");
+    last_debug_log = now;
+  }
   
   // Handle cursor blinking
   if (this->cursor_blink_ && (now - this->last_cursor_toggle_) > 500) {
@@ -75,9 +110,20 @@ void RobCoTerminal::dump_config() {
   ESP_LOGCONFIG(TAG, "  Font Color: 0x%06X", this->font_color_);
   ESP_LOGCONFIG(TAG, "  Background Color: 0x%06X", this->background_color_);
   ESP_LOGCONFIG(TAG, "  Menu Items: %d", this->main_menu_.size());
+  ESP_LOGCONFIG(TAG, "  Display Connected: %s", this->display_ ? "YES" : "NO");
+  
+  // Log menu structure
+  for (size_t i = 0; i < this->main_menu_.size(); i++) {
+    const auto &item = this->main_menu_[i];
+    ESP_LOGCONFIG(TAG, "    Menu[%d]: %s (%s)", i, item.title.c_str(), 
+                  item.type == MenuItemType::SUBMENU ? "submenu" : 
+                  item.type == MenuItemType::ACTION ? "action" : 
+                  item.type == MenuItemType::STATUS ? "status" : "text_editor");
+  }
 }
 
 void RobCoTerminal::init_boot_sequence() {
+  ESP_LOGI(TAG, "Initializing boot sequence messages");
   this->boot_messages_ = {
     "RobCo Industries (TM) Termlink Protocol",
     "Established 2075",
@@ -100,6 +146,7 @@ void RobCoTerminal::init_boot_sequence() {
     "",
     "Press any key to continue..."
   };
+  ESP_LOGI(TAG, "Boot sequence initialized with %d messages", this->boot_messages_.size());
 }
 
 void RobCoTerminal::update_boot_sequence() {
@@ -107,11 +154,14 @@ void RobCoTerminal::update_boot_sequence() {
   
   // Show one line every 200ms
   if (elapsed > (this->boot_line_ * 200) && this->boot_line_ < this->boot_messages_.size()) {
+    ESP_LOGI(TAG, "Boot line %d: %s", this->boot_line_, 
+             this->boot_line_ < this->boot_messages_.size() ? this->boot_messages_[this->boot_line_].c_str() : "");
     this->boot_line_++;
   }
   
   // Boot complete after all messages shown + 2 seconds
   if (elapsed > (this->boot_messages_.size() * 200 + 2000)) {
+    ESP_LOGI(TAG, "Boot sequence complete, switching to main menu");
     this->boot_complete_ = true;
     this->current_state_ = TerminalState::MAIN_MENU;
     this->clear_screen();
@@ -448,6 +498,7 @@ void RobCoTerminal::add_menu_item(const std::string &title, const std::string &t
                                   bool readonly, const std::string &condition_topic,
                                   const std::string &condition_value, const std::string &file_path,
                                   int max_entries) {
+  ESP_LOGI(TAG, "Adding menu item: '%s' (type: %s)", title.c_str(), type.c_str());
   MenuItem item;
   item.title = title;
   item.type = this->string_to_menu_type(type);
@@ -460,6 +511,7 @@ void RobCoTerminal::add_menu_item(const std::string &title, const std::string &t
   item.max_entries = max_entries;
   
   this->main_menu_.push_back(item);
+  ESP_LOGI(TAG, "Menu item added. Total main menu items: %d", this->main_menu_.size());
 }
 
 void RobCoTerminal::add_submenu_item(const std::string &parent_title, const std::string &title,

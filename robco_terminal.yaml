@@ -16,34 +16,40 @@ esp32:
 
 # Enable logging
 logger:
-  level: INFO
+  level: DEBUG
+  baud_rate: 115200
+  hardware_uart: UART0
+  logs:
+    component: DEBUG
+    robco_terminal: DEBUG
 
-# Enable Home Assistant API
-api:
-  encryption:
-    key: !secret api_encryption_key
+# Enable Home Assistant API (disabled for debugging)
+# api:
+#   encryption:
+#     key: !secret api_encryption_key
 
-ota:
-  - platform: esphome
-    password: !secret ota_password
+# ota:
+#   - platform: esphome
+#     password: !secret ota_password
 
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
-  ap:
-    ssid: "RobCo Terminal Fallback"
-    password: "robco123"
+# WiFi temporarily disabled for debugging
+# wifi:
+#   ssid: !secret wifi_ssid
+#   password: !secret wifi_password
+#   
+#   # Enable fallback hotspot (captive portal) in case wifi connection fails
+#   ap:
+#     ssid: "RobCo Terminal Fallback"
+#     password: "robco123"
 
-captive_portal:
+# captive_portal:
 
-# MQTT for Home Assistant integration
-mqtt:
-  broker: !secret mqtt_broker
-  username: !secret mqtt_username
-  password: !secret mqtt_password
-  topic_prefix: robco_terminal
+# MQTT for Home Assistant integration (disabled for debugging)
+# mqtt:
+#   broker: !secret mqtt_broker
+#   username: !secret mqtt_username
+#   password: !secret mqtt_password
+#   topic_prefix: robco_terminal
 
 # USB Host for keyboard support (commented out for initial setup)
 # usb_host:
@@ -64,6 +70,12 @@ spi:
   clk_pin: GPIO7
   mosi_pin: GPIO6
 
+# Font for display
+font:
+  - file: "gfonts://Roboto Mono"
+    id: terminal_font
+    size: 16
+
 # Display configuration for 7" 800x480 RGB LCD
 # Note: Your board may use different pins - check the schematic
 display:
@@ -77,10 +89,10 @@ display:
     invert_colors: false
     update_interval: 50ms
     lambda: |-
-      // Display will be handled by custom component
-      return;
+      // Call the custom component's render method
+      id(terminal).render_display(it);
 
-# Custom RobCo Terminal component (commented out for initial setup)
+# Custom RobCo Terminal component
 robco_terminal:
   id: terminal
   display_id: robco_display
@@ -92,49 +104,49 @@ robco_terminal:
   cursor_blink: true
   font_color: 0x00FF00  # Classic green
   background_color: 0x000000  # Black
-  
-  # Menu structure
-  menu_items:
-    - title: "VAULT DOOR CONTROL"
-      type: submenu
-      items:
-        - title: "Door Status"
-          type: status
-          mqtt_topic: "vault/door/status"
-          readonly: true
-        - title: "Open Door"
-          type: action
-          mqtt_topic: "vault/door/command"
-          mqtt_payload: "OPEN"
-          condition_topic: "vault/door/status"
-          condition_value: "CLOSED"
-        - title: "Close Door"
-          type: action
-          mqtt_topic: "vault/door/command"
-          mqtt_payload: "CLOSE"
-          condition_topic: "vault/door/status"
-          condition_value: "OPEN"
-          
-    - title: "SECURITY SYSTEM"
-      type: submenu
-      items:
-        - title: "System Status"
-          type: status
-          mqtt_topic: "security/status"
-          readonly: true
-        - title: "Arm System"
-          type: action
-          mqtt_topic: "security/command"
-          mqtt_payload: "ARM"
-        - title: "Disarm System"
-          type: action
-          mqtt_topic: "security/command"
-          mqtt_payload: "DISARM"
-          
-    - title: "TERMINAL LOGS"
-      type: text_editor
-      file_path: "/logs/terminal.log"
-      max_entries: 100
+#   
+#   # Menu structure
+#   menu_items:
+#     - title: "VAULT DOOR CONTROL"
+#       type: submenu
+#       items:
+#         - title: "Door Status"
+#           type: status
+#           mqtt_topic: "vault/door/status"
+#           readonly: true
+#         - title: "Open Door"
+#           type: action
+#           mqtt_topic: "vault/door/command"
+#           mqtt_payload: "OPEN"
+#           condition_topic: "vault/door/status"
+#           condition_value: "CLOSED"
+#         - title: "Close Door"
+#           type: action
+#           mqtt_topic: "vault/door/command"
+#           mqtt_payload: "CLOSE"
+#           condition_topic: "vault/door/status"
+#           condition_value: "OPEN"
+#           
+#     - title: "SECURITY SYSTEM"
+#       type: submenu
+#       items:
+#         - title: "System Status"
+#           type: status
+#           mqtt_topic: "security/status"
+#           readonly: true
+#         - title: "Arm System"
+#           type: action
+#           mqtt_topic: "security/command"
+#           mqtt_payload: "ARM"
+#         - title: "Disarm System"
+#           type: action
+#           mqtt_topic: "security/command"
+#           mqtt_payload: "DISARM"
+#           
+#     - title: "TERMINAL LOGS"
+#       type: text_editor
+#       file_path: "/logs/terminal.log"
+#       max_entries: 100
 
 # USB Keyboard (commented out for initial setup)
 # usb_keyboard:

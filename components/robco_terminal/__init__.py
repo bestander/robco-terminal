@@ -1,9 +1,11 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import display, mqtt
+from esphome.components import display
+# from esphome.components import mqtt  # Temporarily removed for debugging
 from esphome.const import CONF_ID, CONF_LAMBDA
 
-DEPENDENCIES = ["display", "mqtt"]
+DEPENDENCIES = []
+# DEPENDENCIES = ["display", "mqtt"]  # Temporarily removed for debugging
 CODEOWNERS = ["@your_github_username"]
 
 robco_terminal_ns = cg.esphome_ns.namespace("robco_terminal")

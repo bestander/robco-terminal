@@ -3,7 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
 #include "esphome/components/display/display_buffer.h"
-#include "esphome/components/mqtt/mqtt_client.h"
+// #include "esphome/components/mqtt/mqtt_client.h"  // Temporarily removed for debugging
 #include <vector>
 #include <string>
 #include <map>
@@ -86,6 +86,9 @@ class RobCoTerminal : public Component {
   void on_mqtt_message(const std::string &topic, const std::string &payload);
   void publish_mqtt_message(const std::string &topic, const std::string &payload);
   
+  // Display rendering
+  void render_display(display::DisplayBuffer &it);
+  
  protected:
   display::DisplayBuffer *display_{nullptr};
   std::string mqtt_topic_prefix_;
@@ -125,7 +128,6 @@ class RobCoTerminal : public Component {
   // Private methods
   void init_boot_sequence();
   void update_boot_sequence();
-  void render_display(display::DisplayBuffer &it);
   void render_boot_screen(display::DisplayBuffer &it);
   void render_main_menu(display::DisplayBuffer &it);
   void render_submenu(display::DisplayBuffer &it);
