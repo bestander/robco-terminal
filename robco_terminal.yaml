@@ -1,15 +1,18 @@
 esphome:
   name: robco-terminal
   friendly_name: RobCo Terminal
-  # platformio_options can go here if needed
   platformio_options:
     board_build.flash_mode: dio
     board_build.psram_type: opi
+    board_build.flash_size: 16MB
+    board_build.partitions: huge_app.csv
 
+# ESP32-S3 configuration for 8M PSRAM + 16M Flash board
 esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: arduino
+  variant: esp32s3
 
 # Enable logging
 logger:
@@ -51,12 +54,18 @@ mqtt:
 #       type: local
 #       path: components
 
-# SPI for display
+# PSRAM configuration for 8M PSRAM
+psram:
+  mode: octal
+  speed: 80MHz
+
+# SPI for basic display communication (even RGB displays often need SPI for init)
 spi:
   clk_pin: GPIO7
   mosi_pin: GPIO6
 
 # Display configuration for 7" 800x480 RGB LCD
+# Note: Your board may use different pins - check the schematic
 display:
   - platform: ili9xxx
     model: ili9488

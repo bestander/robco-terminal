@@ -1,0 +1,7 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.default.configurationProvider": "",
+    "C_Cpp.configurationWarnings": "disabled",
+    "esphome.dashboard.port": 6052,
+    "esphome.dashboard.start": false
+}
