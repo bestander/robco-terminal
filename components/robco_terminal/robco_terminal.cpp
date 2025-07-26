@@ -1,6 +1,7 @@
 #include "robco_terminal.h"
 #include "esphome/core/log.h"
 #include "esphome/core/hal.h"
+#include "esphome/core/color.h"
 
 namespace esphome {
 namespace robco_terminal {
@@ -37,12 +38,12 @@ void RobCoTerminal::setup() {
     this->current_state_ = TerminalState::MAIN_MENU;
   }
   
-  // Set up display update callback
-  if (this->display_) {
-    this->display_->set_writer([this](display::DisplayBuffer &it) {
-      this->render_display(it);
-    });
-  }
+  // Set up display update callback - remove this for now as it needs different integration
+  // if (this->display_) {
+  //   this->display_->set_writer([this](display::DisplayBuffer &it) {
+  //     this->render_display(it);
+  //   });
+  // }
   
   ESP_LOGCONFIG(TAG, "RobCo Terminal setup complete");
 }
@@ -121,7 +122,7 @@ void RobCoTerminal::update_boot_sequence() {
 
 void RobCoTerminal::render_display(display::DisplayBuffer &it) {
   // Clear screen with background color
-  it.fill(this->background_color_);
+  it.fill(Color(this->background_color_));
   
   switch (this->current_state_) {
     case TerminalState::BOOTING:
@@ -239,16 +240,18 @@ void RobCoTerminal::render_text_editor(display::DisplayBuffer &it) {
 void RobCoTerminal::draw_text(display::DisplayBuffer &it, int x, int y, const std::string &text, uint32_t color) {
   if (color == 0) color = this->font_color_;
   
-  for (size_t i = 0; i < text.length(); i++) {
-    this->draw_char(it, x + (i * TerminalFont::CHAR_WIDTH), y, text[i], color);
-  }
+  // For now, use simple pixel drawing - this is a placeholder
+  // In a real implementation, you'd need to implement font rendering
+  // or use ESPHome's font system with proper BaseFont
+  ESP_LOGD(TAG, "Drawing text at (%d,%d): %s", x, y, text.c_str());
 }
 
 void RobCoTerminal::draw_char(display::DisplayBuffer &it, int x, int y, char c, uint32_t color) {
   if (color == 0) color = this->font_color_;
   
-  // For now, use built-in font - later we can implement custom terminal font
-  it.printf(x, y, color, "%c", c);
+  // For now, use simple pixel drawing - this is a placeholder
+  // In a real implementation, you'd need to implement character rendering
+  ESP_LOGD(TAG, "Drawing char at (%d,%d): %c", x, y, c);
 }
 
 void RobCoTerminal::handle_key_press(uint16_t key, uint8_t modifiers) {
@@ -351,8 +354,96 @@ void RobCoTerminal::navigate_escape() {
   }
 }
 
-// ... Additional methods would continue here
-// This is getting quite long, so I'll create the rest in separate files
+void RobCoTerminal::clear_screen() {
+  // Clear the screen buffer
+  for (auto &line : this->screen_buffer_) {
+    line.clear();
+  }
+}
+
+void RobCoTerminal::handle_text_editor_input(uint16_t key, uint8_t modifiers) {
+  // TODO: Implement text editor input handling
+  ESP_LOGD(TAG, "Text editor input: key=0x%04X, modifiers=0x%02X", key, modifiers);
+}
+
+void RobCoTerminal::render_action_screen(display::DisplayBuffer &it) {
+  // Header
+  this->draw_text(it, 10, 20, "EXECUTING ACTION...", this->font_color_);
+  this->draw_text(it, 10, 40, "Please wait...", this->font_color_);
+}
+
+void RobCoTerminal::execute_action(const MenuItem &item) {
+  ESP_LOGD(TAG, "Executing action: %s", item.title.c_str());
+  if (!item.mqtt_topic.empty()) {
+    this->publish_mqtt_message(item.mqtt_topic, item.mqtt_payload);
+  }
+}
+
+void RobCoTerminal::enter_text_editor(const MenuItem &item) {
+  ESP_LOGD(TAG, "Entering text editor for: %s", item.title.c_str());
+  this->current_state_ = TerminalState::TEXT_EDITOR;
+  this->editor_content_ = "";
+  this->editor_cursor_pos_ = 0;
+  // TODO: Load file content if file_path is specified
+}
+
+void RobCoTerminal::update_menu_visibility() {
+  // TODO: Update menu item visibility based on MQTT states
+  for (auto &item : this->main_menu_) {
+    item.visible = true; // For now, show all items
+  }
+}
+
+void RobCoTerminal::update_status_values() {
+  // TODO: Update status values from MQTT
+}
+
+bool RobCoTerminal::should_show_item(const MenuItem &item) {
+  return item.visible;
+}
+
+std::string RobCoTerminal::format_menu_item(const MenuItem &item, bool selected) {
+  std::string prefix = selected ? "> " : "  ";
+  std::string suffix = "";
+  
+  if (item.type == MenuItemType::STATUS && !item.current_value.empty()) {
+    suffix = ": " + item.current_value;
+  }
+  
+  return prefix + item.title + suffix;
+}
+
+std::vector<MenuItem> *RobCoTerminal::get_current_menu() {
+  if (this->current_state_ == TerminalState::MAIN_MENU) {
+    return &this->main_menu_;
+  } else if (this->current_state_ == TerminalState::SUBMENU && !this->menu_stack_.empty()) {
+    int parent_index = this->menu_stack_.back();
+    if (parent_index >= 0 && parent_index < this->main_menu_.size()) {
+      return &this->main_menu_[parent_index].subitems;
+    }
+  }
+  return nullptr;
+}
+
+std::vector<std::string> RobCoTerminal::split_string(const std::string &str, char delimiter) {
+  std::vector<std::string> result;
+  std::string current;
+  
+  for (char c : str) {
+    if (c == delimiter) {
+      result.push_back(current);
+      current.clear();
+    } else {
+      current += c;
+    }
+  }
+  
+  if (!current.empty()) {
+    result.push_back(current);
+  }
+  
+  return result;
+}
 
 }  // namespace robco_terminal
 }  // namespace esphome

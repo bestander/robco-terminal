@@ -125,24 +125,28 @@ class RobCoTerminal : public Component {
   // Private methods
   void init_boot_sequence();
   void update_boot_sequence();
-  void render_boot_screen();
-  void render_main_menu();
-  void render_submenu();
-  void render_text_editor();
-  void render_cursor();
+  void render_display(display::DisplayBuffer &it);
+  void render_boot_screen(display::DisplayBuffer &it);
+  void render_main_menu(display::DisplayBuffer &it);
+  void render_submenu(display::DisplayBuffer &it);
+  void render_text_editor(display::DisplayBuffer &it);
+  void render_action_screen(display::DisplayBuffer &it);
   
   void navigate_up();
   void navigate_down();
   void navigate_enter();
   void navigate_escape();
+  void handle_menu_navigation(uint16_t key, uint8_t modifiers);
+  void handle_text_editor_input(uint16_t key, uint8_t modifiers);
   
   void execute_action(const MenuItem &item);
+  void enter_text_editor(const MenuItem &item);
   void update_menu_visibility();
   void update_status_values();
   
   // Text rendering
-  void draw_text(int x, int y, const std::string &text, uint32_t color = 0);
-  void draw_char(int x, int y, char c, uint32_t color = 0);
+  void draw_text(display::DisplayBuffer &it, int x, int y, const std::string &text, uint32_t color = 0);
+  void draw_char(display::DisplayBuffer &it, int x, int y, char c, uint32_t color = 0);
   void clear_screen();
   void scroll_up();
   void scroll_down();
@@ -151,6 +155,8 @@ class RobCoTerminal : public Component {
   MenuItemType string_to_menu_type(const std::string &type);
   std::string format_menu_item(const MenuItem &item, bool selected);
   bool should_show_item(const MenuItem &item);
+  std::vector<MenuItem> *get_current_menu();
+  std::vector<std::string> split_string(const std::string &str, char delimiter);
   
   // File operations for text editor
   std::string load_file(const std::string &path);
