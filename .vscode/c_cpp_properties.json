@@ -1,0 +1,68 @@
+{
+    "configurations": [
+        {
+            "name": "ESPHome",
+            "includePath": [
+                "${workspaceFolder}/.vscode",
+                "${workspaceFolder}/components",
+                "${workspaceFolder}/.esphome/build/robco-terminal/src",
+                "${env:HOME}/.platformio/packages/framework-arduinoespressif32-libs/esp32s3/dio_opi/include",
+                "${env:HOME}/.platformio/packages/framework-arduinoespressif32-libs/esp32s3/include/**",
+                "${env:HOME}/.platformio/packages/framework-arduinoespressif32-libs/esp32s3/include/freertos/FreeRTOS-Kernel/portable/xtensa/include",
+                "${env:HOME}/.platformio/packages/framework-arduinoespressif32/cores/esp32",
+                "${env:HOME}/.platformio/packages/framework-arduinoespressif32/variants/esp32s3",
+                "${env:HOME}/.platformio/packages/framework-arduinoespressif32/libraries/**",
+                "${workspaceFolder}/.esphome/build/robco-terminal/.piolibdeps/robco-terminal/**"
+            ],
+            "defines": [
+                "PLATFORMIO=60118",
+                "ARDUINO_ESP32S3_DEV",
+                "ARDUINO_USB_MODE=1",
+                "ARDUINO_RUNNING_CORE=1",
+                "ARDUINO_EVENT_RUNNING_CORE=1",
+                "ARDUINO_USB_CDC_ON_BOOT=1",
+                "ESPHOME_LOG_LEVEL=ESPHOME_LOG_LEVEL_INFO",
+                "USE_ARDUINO",
+                "USE_ESP32",
+                "USE_ESP32_FRAMEWORK_ARDUINO",
+                "USE_ESP32_VARIANT_ESP32S3",
+                "ESP32_ARDUINO_LIB_BUILDER",
+                "ESP_PLATFORM",
+                "IDF_VER=\"v5.3.2-584-g489d7a2b3a-dirty\"",
+                "MBEDTLS_CONFIG_FILE=\"mbedtls/esp_config.h\"",
+                "MD5_ENABLED=1",
+                "SERIAL_FLASHER_BOOT_HOLD_TIME_MS=50",
+                "SERIAL_FLASHER_RESET_HOLD_TIME_MS=100",
+                "SOC_MMU_PAGE_SIZE=CONFIG_MMU_PAGE_SIZE",
+                "SOC_XTAL_FREQ_MHZ=CONFIG_XTAL_FREQ",
+                "UNITY_INCLUDE_CONFIG_H",
+                "_GLIBCXX_HAVE_POSIX_SEMAPHORE",
+                "_GLIBCXX_USE_POSIX_SEMAPHORE",
+                "_GNU_SOURCE",
+                "_POSIX_READER_WRITER_LOCKS",
+                "TF_LITE_STATIC_MEMORY",
+                "CHIP_CONFIG_SOFTWARE_VERSION_NUMBER=0",
+                "CHIP_MINMDNS_DEFAULT_POLICY=1",
+                "CHIP_MINMDNS_USE_EPHEMERAL_UNICAST_PORT=0",
+                "CHIP_MINMDNS_HIGH_VERBOSITY=0",
+                "CHIP_DNSSD_DEFAULT_MINIMAL=1",
+                "ARDUINO_ARCH_ESP32",
+                "CHIP_HAVE_CONFIG_H",
+                "ESP32=ESP32",
+                "F_CPU=240000000L",
+                "ARDUINO=10812",
+                "ARDUINO_VARIANT=\"esp32s3\"",
+                "ARDUINO_BOARD=\"Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)\"",
+                "ARDUINO_PARTITION_partitions"
+            ],
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++20",
+            "compilerPath": "/Users/bestander/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc",
+            "intelliSenseMode": "gcc-x64",
+            "compilerArgs": [
+                "-mlongcalls"
+            ]
+        }
+    ],
+    "version": 4
+}

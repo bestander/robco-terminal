@@ -1,0 +1,51 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "ESPHome Compile",
+			"type": "shell",
+			"command": "source .venv/bin/activate && esphome compile robco_terminal.yaml",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			]
+		},
+		{
+			"label": "ESPHome Upload",
+			"type": "shell",
+			"command": "source .venv/bin/activate && esphome upload robco_terminal.yaml",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			]
+		},
+		{
+			"label": "ESPHome Run (Compile & Upload)",
+			"type": "shell",
+			"command": "source .venv/bin/activate && esphome run robco_terminal.yaml",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			]
+		},
+		{
+			"label": "ESPHome Logs",
+			"type": "shell",
+			"command": "source .venv/bin/activate && esphome logs robco_terminal.yaml",
+			"group": "test",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "ESPHome Config Validate",
+			"type": "shell",
+			"command": "source .venv/bin/activate && esphome config robco_terminal.yaml",
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
