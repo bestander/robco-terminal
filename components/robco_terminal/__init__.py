@@ -53,11 +53,28 @@ def validate_menu_item(config):
     
     return config
 
+# Define menu item schema without recursive reference for now
+# ESPHome doesn't handle deep recursive schemas well, so we'll limit to 2 levels
 MENU_ITEM_SCHEMA = cv.All(
     cv.Schema({
         cv.Required(CONF_TITLE): cv.string,
         cv.Required(CONF_TYPE): cv.one_of(*MENU_TYPES, lower=True),
-        cv.Optional(CONF_ITEMS): cv.ensure_list(lambda: MENU_ITEM_SCHEMA),
+        cv.Optional(CONF_ITEMS): cv.ensure_list(
+            cv.All(
+                cv.Schema({
+                    cv.Required(CONF_TITLE): cv.string,
+                    cv.Required(CONF_TYPE): cv.one_of(*MENU_TYPES, lower=True),
+                    cv.Optional(CONF_MQTT_TOPIC): cv.string,
+                    cv.Optional(CONF_MQTT_PAYLOAD): cv.string,
+                    cv.Optional(CONF_READONLY, default=False): cv.boolean,
+                    cv.Optional(CONF_CONDITION_TOPIC): cv.string,
+                    cv.Optional(CONF_CONDITION_VALUE): cv.string,
+                    cv.Optional(CONF_FILE_PATH): cv.string,
+                    cv.Optional(CONF_MAX_ENTRIES, default=100): cv.positive_int,
+                }),
+                validate_menu_item
+            )
+        ),
         cv.Optional(CONF_MQTT_TOPIC): cv.string,
         cv.Optional(CONF_MQTT_PAYLOAD): cv.string,
         cv.Optional(CONF_READONLY, default=False): cv.boolean,

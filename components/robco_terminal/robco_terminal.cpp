@@ -6,8 +6,6 @@
 namespace esphome {
 namespace robco_terminal {
 
-static const char *const TAG = "robco_terminal";
-
 // Terminal character map for authentic look
 static const uint8_t TERMINAL_FONT[128][16] = {
     // Basic ASCII characters (simplified for example)
@@ -443,6 +441,58 @@ std::vector<std::string> RobCoTerminal::split_string(const std::string &str, cha
   }
   
   return result;
+}
+
+void RobCoTerminal::add_menu_item(const std::string &title, const std::string &type,
+                                  const std::string &mqtt_topic, const std::string &mqtt_payload,
+                                  bool readonly, const std::string &condition_topic,
+                                  const std::string &condition_value, const std::string &file_path,
+                                  int max_entries) {
+  MenuItem item;
+  item.title = title;
+  item.type = this->string_to_menu_type(type);
+  item.mqtt_topic = mqtt_topic;
+  item.mqtt_payload = mqtt_payload;
+  item.readonly = readonly;
+  item.condition_topic = condition_topic;
+  item.condition_value = condition_value;
+  item.file_path = file_path;
+  item.max_entries = max_entries;
+  
+  this->main_menu_.push_back(item);
+}
+
+void RobCoTerminal::add_submenu_item(const std::string &parent_title, const std::string &title,
+                                     const std::string &type, const std::string &mqtt_topic,
+                                     const std::string &mqtt_payload, bool readonly,
+                                     const std::string &condition_topic, const std::string &condition_value,
+                                     const std::string &file_path, int max_entries) {
+  // Find the parent menu item
+  for (auto &parent : this->main_menu_) {
+    if (parent.title == parent_title && parent.type == MenuItemType::SUBMENU) {
+      MenuItem item;
+      item.title = title;
+      item.type = this->string_to_menu_type(type);
+      item.mqtt_topic = mqtt_topic;
+      item.mqtt_payload = mqtt_payload;
+      item.readonly = readonly;
+      item.condition_topic = condition_topic;
+      item.condition_value = condition_value;
+      item.file_path = file_path;
+      item.max_entries = max_entries;
+      
+      parent.subitems.push_back(item);
+      break;
+    }
+  }
+}
+
+MenuItemType RobCoTerminal::string_to_menu_type(const std::string &type) {
+  if (type == "submenu") return MenuItemType::SUBMENU;
+  if (type == "action") return MenuItemType::ACTION;
+  if (type == "status") return MenuItemType::STATUS;
+  if (type == "text_editor") return MenuItemType::TEXT_EDITOR;
+  return MenuItemType::ACTION; // default
 }
 
 }  // namespace robco_terminal

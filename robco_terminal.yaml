@@ -49,10 +49,10 @@ mqtt:
 # usb_host:
 
 # Custom external components (commented out for initial validation)
-# external_components:
-#   - source:
-#       type: local
-#       path: components
+external_components:
+  - source:
+      type: local
+      path: components
 
 # PSRAM configuration for 8M PSRAM
 psram:
@@ -81,60 +81,60 @@ display:
       return;
 
 # Custom RobCo Terminal component (commented out for initial setup)
-# robco_terminal:
-#   id: terminal
-#   display_id: robco_display
-#   keyboard_id: usb_keyboard
-#   mqtt_topic_prefix: "robco_terminal"
-#   
-#   # Terminal configuration
-#   boot_sequence: true
-#   cursor_blink: true
-#   font_color: 0x00FF00  # Classic green
-#   background_color: 0x000000  # Black
-#   
-#   # Menu structure
-#   menu_items:
-#     - title: "VAULT DOOR CONTROL"
-#       type: submenu
-#       items:
-#         - title: "Door Status"
-#           type: status
-#           mqtt_topic: "vault/door/status"
-#           readonly: true
-#         - title: "Open Door"
-#           type: action
-#           mqtt_topic: "vault/door/command"
-#           mqtt_payload: "OPEN"
-#           condition_topic: "vault/door/status"
-#           condition_value: "CLOSED"
-#         - title: "Close Door"
-#           type: action
-#           mqtt_topic: "vault/door/command"
-#           mqtt_payload: "CLOSE"
-#           condition_topic: "vault/door/status"
-#           condition_value: "OPEN"
-#           
-#     - title: "SECURITY SYSTEM"
-#       type: submenu
-#       items:
-#         - title: "System Status"
-#           type: status
-#           mqtt_topic: "security/status"
-#           readonly: true
-#         - title: "Arm System"
-#           type: action
-#           mqtt_topic: "security/command"
-#           mqtt_payload: "ARM"
-#         - title: "Disarm System"
-#           type: action
-#           mqtt_topic: "security/command"
-#           mqtt_payload: "DISARM"
-#           
-#     - title: "TERMINAL LOGS"
-#       type: text_editor
-#       file_path: "/logs/terminal.log"
-#       max_entries: 100
+robco_terminal:
+  id: terminal
+  display_id: robco_display
+  keyboard_id: usb_keyboard
+  mqtt_topic_prefix: "robco_terminal"
+  
+  # Terminal configuration
+  boot_sequence: true
+  cursor_blink: true
+  font_color: 0x00FF00  # Classic green
+  background_color: 0x000000  # Black
+  
+  # Menu structure
+  menu_items:
+    - title: "VAULT DOOR CONTROL"
+      type: submenu
+      items:
+        - title: "Door Status"
+          type: status
+          mqtt_topic: "vault/door/status"
+          readonly: true
+        - title: "Open Door"
+          type: action
+          mqtt_topic: "vault/door/command"
+          mqtt_payload: "OPEN"
+          condition_topic: "vault/door/status"
+          condition_value: "CLOSED"
+        - title: "Close Door"
+          type: action
+          mqtt_topic: "vault/door/command"
+          mqtt_payload: "CLOSE"
+          condition_topic: "vault/door/status"
+          condition_value: "OPEN"
+          
+    - title: "SECURITY SYSTEM"
+      type: submenu
+      items:
+        - title: "System Status"
+          type: status
+          mqtt_topic: "security/status"
+          readonly: true
+        - title: "Arm System"
+          type: action
+          mqtt_topic: "security/command"
+          mqtt_payload: "ARM"
+        - title: "Disarm System"
+          type: action
+          mqtt_topic: "security/command"
+          mqtt_payload: "DISARM"
+          
+    - title: "TERMINAL LOGS"
+      type: text_editor
+      file_path: "/logs/terminal.log"
+      max_entries: 100
 
 # USB Keyboard (commented out for initial setup)
 # usb_keyboard:

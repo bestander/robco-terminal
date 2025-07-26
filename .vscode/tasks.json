@@ -2,14 +2,44 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "ESPHome Config Validate",
+			"type": "shell",
+			"command": "source .venv/bin/activate && esphome config robco_terminal.yaml",
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"detail": "Validate ESPHome configuration YAML"
+		},
+		{
 			"label": "ESPHome Compile",
 			"type": "shell",
 			"command": "source .venv/bin/activate && esphome compile robco_terminal.yaml",
-			"group": "build",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
 			"isBackground": false,
 			"problemMatcher": [
 				"$gcc"
-			]
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"detail": "Build the project without uploading",
+			"dependsOn": "ESPHome Config Validate"
 		},
 		{
 			"label": "ESPHome Upload",
@@ -19,17 +49,36 @@
 			"isBackground": false,
 			"problemMatcher": [
 				"$gcc"
-			]
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"detail": "Upload firmware to device (OTA or USB)"
 		},
 		{
-			"label": "ESPHome Run (Compile & Upload)",
+			"label": "ESPHome Run",
 			"type": "shell",
 			"command": "source .venv/bin/activate && esphome run robco_terminal.yaml",
 			"group": "build",
 			"isBackground": false,
 			"problemMatcher": [
 				"$gcc"
-			]
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"detail": "Compile and upload in one step",
+			"dependsOn": "ESPHome Config Validate"
 		},
 		{
 			"label": "ESPHome Logs",
@@ -37,15 +86,16 @@
 			"command": "source .venv/bin/activate && esphome logs robco_terminal.yaml",
 			"group": "test",
 			"isBackground": true,
-			"problemMatcher": []
-		},
-		{
-			"label": "ESPHome Config Validate",
-			"type": "shell",
-			"command": "source .venv/bin/activate && esphome config robco_terminal.yaml",
-			"group": "test",
-			"isBackground": false,
-			"problemMatcher": []
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "dedicated",
+				"showReuseMessage": false,
+				"clear": true
+			},
+			"detail": "Monitor device logs (runs in background)"
 		}
 	]
 }
