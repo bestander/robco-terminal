@@ -34,23 +34,42 @@ A fully functional Fallout-style terminal interface for ESP32-S3 with 7" display
 ## Project Structure
 
 ```
-fallout-terminal/
+robco-terminal/
 ├── robco_terminal.yaml          # Main ESPHome configuration
 ├── secrets.yaml.template        # Configuration template
 ├── secrets.yaml                 # Your actual secrets (create from template)
+├── setup.sh                     # Automated setup script
 ├── components/
 │   └── robco_terminal/          # Custom ESPHome component
 │       ├── __init__.py          # Component registration
 │       ├── robco_terminal.h     # C++ header
 │       └── robco_terminal.cpp   # C++ implementation
+├── home_assistant_config.yaml   # Example HA configuration
 └── README.md                    # This file
 ```
 
 ## Setup Instructions
 
-### 1. Install ESPHome
+### Quick Setup (Recommended)
+```bash
+# Run the automated setup script
+./setup.sh
+```
+This script will:
+- Install ESPHome in a virtual environment
+- Create `secrets.yaml` from template
+- Generate a valid API encryption key
+- Validate the configuration
+
+### Manual Setup
+
+#### 1. Install ESPHome
 
 ```bash
+# Create virtual environment (recommended)
+python3 -m venv .venv
+source .venv/bin/activate
+
 # Install ESPHome
 pip install esphome
 
@@ -58,7 +77,7 @@ pip install esphome
 docker pull esphome/esphome
 ```
 
-### 2. Configure Your Secrets
+#### 2. Configure Your Secrets
 
 ```bash
 # Copy the template
@@ -80,30 +99,50 @@ mqtt_username: "your_mqtt_username"
 mqtt_password: "your_mqtt_password"
 ```
 
-### 3. Generate API Key
+#### 3. Generate API Key
 
 ```bash
-# Generate encryption key
-esphome wizard robco_terminal.yaml
-# Follow prompts, copy the generated API key to secrets.yaml
+# Generate encryption key (32-byte base64)
+openssl rand -base64 32
+# Copy output to secrets.yaml as api_encryption_key
 ```
 
-### 4. Validate Configuration
+#### 4. Validate Configuration
 
 ```bash
 # Check configuration
 esphome config robco_terminal.yaml
 ```
 
-### 5. Compile and Upload
+#### 5. Compile and Upload
 
 ```bash
+# Activate virtual environment (if using)
+source .venv/bin/activate
+
 # First time - compile and upload via USB
 esphome run robco_terminal.yaml
 
 # Subsequent updates can be done OTA
 esphome upload robco_terminal.yaml --device robco-terminal.local
 ```
+
+## Development
+
+### VS Code Integration
+The project includes VS Code tasks for common operations:
+- **ESPHome Compile** - Build the project
+- **ESPHome Upload** - Flash to device  
+- **ESPHome Run** - Compile and upload
+- **ESPHome Logs** - Monitor device logs
+- **ESPHome Config Validate** - Check configuration
+
+### Development Workflow
+1. Edit configuration/code
+2. `esphome config robco_terminal.yaml` - validate
+3. `esphome compile robco_terminal.yaml` - build
+4. `esphome upload robco_terminal.yaml` - flash
+5. Monitor logs and test functionality
 
 ## Configuration
 
@@ -235,6 +274,14 @@ logger:
   logs:
     robco_terminal: VERBOSE
 ```
+
+### Python Environment Issues
+- Use virtual environment to avoid `externally-managed-environment` error
+- Run `./setup.sh` to automatically set up the environment
+- Always activate `.venv` before running ESPHome commands
+
+### C/C++ Include Path Issues (VS Code)
+Install the PlatformIO extension for VS Code to automatically configure include paths for ESPHome projects.
 
 ## Future Enhancements
 
