@@ -14,6 +14,9 @@ class ArduinoGFXDisplay : public Component {
   void loop() override;
   void dump_config() override;
   
+ private:
+  void initialize_display();
+  
  protected:
   // Use void pointers to avoid including Arduino_GFX headers here
   void *bus_{nullptr};
@@ -22,7 +25,6 @@ class ArduinoGFXDisplay : public Component {
   
   // Animation state
   uint32_t last_update_{0};
-  bool setup_complete_{false};
 };
 
 }  // namespace arduino_gfx_display

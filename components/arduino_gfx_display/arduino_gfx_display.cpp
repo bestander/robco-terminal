@@ -10,7 +10,11 @@ namespace esphome {
 namespace arduino_gfx_display {
 
 void ArduinoGFXDisplay::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up Arduino GFX Display...");
+  ESP_LOGCONFIG(TAG, "Arduino GFX Display setup - deferring initialization to loop()");
+}
+
+void ArduinoGFXDisplay::initialize_display() {
+  ESP_LOGCONFIG(TAG, "Initializing display in loop()...");
   
   // Exact copy from HelloWorld.ino
   #define TFT_BL 2
@@ -58,14 +62,20 @@ void ArduinoGFXDisplay::setup() {
   display->setTextColor(0xF800);  // RED
   display->println("Hello World!");
 
-  delay(2000);
-  
-  this->setup_complete_ = true;
-  ESP_LOGCONFIG(TAG, "Arduino GFX Display setup complete");
+  ESP_LOGCONFIG(TAG, "Display initialized in loop successfully!");
 }
 
 void ArduinoGFXDisplay::loop() {
-  if (!this->setup_complete_ || this->gfx_ == nullptr) {
+  static bool display_initialized = false;
+  
+  // Initialize display in loop after all ESPHome components are ready
+  if (!display_initialized) { // Wait 2 seconds for ESPHome to stabilize
+    this->initialize_display();
+    display_initialized = true;
+    return; // Exit early this iteration
+  }
+  
+  if (!display_initialized || this->gfx_ == nullptr) {
     return;
   }
   
@@ -89,7 +99,6 @@ void ArduinoGFXDisplay::loop() {
 
 void ArduinoGFXDisplay::dump_config() {
   ESP_LOGCONFIG(TAG, "Arduino GFX Display:");
-  ESP_LOGCONFIG(TAG, "  Setup: %s", this->setup_complete_ ? "Complete" : "Pending");
 }
 
 }  // namespace arduino_gfx_display
