@@ -11,6 +11,20 @@
 namespace esphome {
 namespace robco_terminal {
 
+// Helper function to convert RGB888 to RGB565
+static uint16_t rgb888_to_rgb565(uint32_t rgb888) {
+  uint8_t r = (rgb888 >> 16) & 0xFF;
+  uint8_t g = (rgb888 >> 8) & 0xFF;
+  uint8_t b = rgb888 & 0xFF;
+  
+  // Convert to RGB565: 5 bits red, 6 bits green, 5 bits blue
+  uint16_t r565 = (r >> 3) & 0x1F;
+  uint16_t g565 = (g >> 2) & 0x3F;
+  uint16_t b565 = (b >> 3) & 0x1F;
+  
+  return (r565 << 11) | (g565 << 5) | b565;
+}
+
 // Terminal character map for authentic look
 static const uint8_t TERMINAL_FONT[128][16] = {
     // Basic ASCII characters (simplified for example)
@@ -113,8 +127,8 @@ void RobCoTerminal::loop() {
     return; // Wait for display initialization
   }
   
-  // Handle cursor blinking
-  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) > 500) {
+  // Handle cursor blinking - slower blink rate for authentic terminal feel
+  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) > 1000) { // 1 second blink rate
     this->cursor_visible_ = !this->cursor_visible_;
     this->last_cursor_toggle_ = now;
   }
@@ -130,15 +144,15 @@ void RobCoTerminal::loop() {
   // Update status values
   this->update_status_values();
   
-  // Render display only every 100ms (10 FPS) or when cursor blinks
+  // Render display only every 500ms (2 FPS) for retro terminal feel
   bool should_render = false;
-  if ((now - last_render) > 100) { // 10 FPS refresh rate
+  if ((now - last_render) > 500) { // 2 FPS refresh rate
     should_render = true;
     last_render = now;
   }
   
   // Force render when cursor state changes (for smooth blinking)
-  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) < 50) {
+  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) < 100) {
     should_render = true;
   }
   
@@ -267,7 +281,7 @@ void RobCoTerminal::render_main_menu() {
   for (size_t i = 0; i < this->main_menu_.size(); i++) {
     if (this->should_show_item(this->main_menu_[i])) {
       std::string line = this->format_menu_item(this->main_menu_[i], i == this->selected_index_);
-      uint32_t color = (i == this->selected_index_) ? 0xFFFF00 : this->font_color_; // Yellow for selected, green for normal
+      uint32_t color = (i == this->selected_index_) ? 0x80FF80 : this->font_color_; // Brighter version of green
       this->draw_text(30, y, line, color);
       y += TerminalFont::CHAR_HEIGHT + 4;
     }
@@ -293,7 +307,7 @@ void RobCoTerminal::render_submenu() {
   for (size_t i = 0; i < parent.subitems.size(); i++) {
     if (this->should_show_item(parent.subitems[i])) {
       std::string line = this->format_menu_item(parent.subitems[i], i == this->selected_index_);
-      uint32_t color = (i == this->selected_index_) ? 0xFFFF00 : this->font_color_;
+      uint32_t color = (i == this->selected_index_) ? 0x80FF80 : this->font_color_;
       this->draw_text(30, y, line, color);
       y += TerminalFont::CHAR_HEIGHT + 4;
     }
@@ -349,15 +363,18 @@ void RobCoTerminal::draw_text(int x, int y, const std::string &text, uint32_t co
   // Use default green color if not specified (Fallout terminal style)
   if (color == 0) color = 0x00FF00; // Bright green
   
+  // Convert RGB888 to RGB565 for Arduino_GFX
+  uint16_t rgb565_color = rgb888_to_rgb565(color);
+  
   // Set cursor and color
   display->setCursor(x, y);
-  display->setTextColor(color);
+  display->setTextColor(rgb565_color);
   display->setTextSize(1, 1); // Standard size
   
   // Print the text
   display->print(text.c_str());
   
-  ESP_LOGD(TAG, "Drawing text at (%d,%d): %s", x, y, text.c_str());
+  ESP_LOGD(TAG, "Drawing text at (%d,%d) with RGB565 color 0x%04X (from 0x%06X): %s", x, y, rgb565_color, color, text.c_str());
 }
 
 void RobCoTerminal::draw_char(int x, int y, char c, uint32_t color) {
@@ -369,15 +386,18 @@ void RobCoTerminal::draw_char(int x, int y, char c, uint32_t color) {
   // Use default green color if not specified
   if (color == 0) color = 0x00FF00; // Bright green
   
+  // Convert RGB888 to RGB565 for Arduino_GFX
+  uint16_t rgb565_color = rgb888_to_rgb565(color);
+  
   // Set cursor and color
   display->setCursor(x, y);
-  display->setTextColor(color);
+  display->setTextColor(rgb565_color);
   display->setTextSize(1, 1);
   
   // Print the character
   display->print(c);
   
-  ESP_LOGD(TAG, "Drawing char at (%d,%d): %c", x, y, c);
+  ESP_LOGD(TAG, "Drawing char at (%d,%d) with RGB565 color 0x%04X (from 0x%06X): %c", x, y, rgb565_color, color, c);
 }
 
 void RobCoTerminal::handle_key_press(uint16_t key, uint8_t modifiers) {
