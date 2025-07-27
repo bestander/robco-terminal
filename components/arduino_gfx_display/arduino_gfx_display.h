@@ -2,7 +2,6 @@
 
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
-#include <Arduino.h>
 
 namespace esphome {
 namespace arduino_gfx_display {
