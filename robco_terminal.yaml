@@ -70,40 +70,49 @@ spi:
   clk_pin: GPIO7
   mosi_pin: GPIO6
 
+# I2C for Wire.h dependency (even if not used directly)
+i2c:
+  sda: GPIO8
+  scl: GPIO9
+
 # Font for display
 font:
   - file: "gfonts://Roboto Mono"
     id: terminal_font
     size: 16
 
-# Display configuration for 7" 800x480 RGB LCD
-# Note: Your board may use different pins - check the schematic
-display:
-  - platform: ili9xxx
-    model: ili9488
-    id: robco_display
-    cs_pin: GPIO5
-    dc_pin: GPIO4
-    reset_pin: GPIO48
-    rotation: 0
-    invert_colors: false
-    update_interval: 50ms
-    lambda: |-
-      // Call the custom component's render method
-      id(terminal).render_display(it);
+# Display configuration for 7" 800x480 RGB LCD using Arduino_GFX
+# Simple HelloWorld demo - hardcoded pins from HelloWorld.ino
+arduino_gfx_display:
+  id: arduino_display
 
-# Custom RobCo Terminal component
-robco_terminal:
-  id: terminal
-  display_id: robco_display
-  keyboard_id: usb_keyboard
-  mqtt_topic_prefix: "robco_terminal"
-  
-  # Terminal configuration
-  boot_sequence: true
-  cursor_blink: true
-  font_color: 0x00FF00  # Classic green
-  background_color: 0x000000  # Black
+# Original display configuration (commented out)
+# display:
+#   - platform: ili9xxx
+#     model: ili9488
+#     id: robco_display
+#     cs_pin: GPIO5
+#     dc_pin: GPIO4
+#     reset_pin: GPIO48
+#     rotation: 0
+#     invert_colors: false
+#     update_interval: 50ms
+#     lambda: |-
+#       // Call the custom component's render method
+#       id(terminal).render_display(it);
+
+# Custom RobCo Terminal component (temporarily disabled since we're testing the display)
+# robco_terminal:
+#   id: terminal
+#   display_id: arduino_display
+#   keyboard_id: usb_keyboard
+#   mqtt_topic_prefix: "robco_terminal"
+#   
+#   # Terminal configuration
+#   boot_sequence: true
+#   cursor_blink: true
+#   font_color: 0x00FF00  # Classic green
+#   background_color: 0x000000  # Black
 #   
 #   # Menu structure
 #   menu_items:
