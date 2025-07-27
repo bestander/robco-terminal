@@ -2,7 +2,8 @@
 
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
-#include "esphome/components/display/display_buffer.h"
+// Removed display_buffer.h since we use Arduino_GFX directly
+// #include "esphome/components/display/display_buffer.h"
 // #include "esphome/components/mqtt/mqtt_client.h"  // Temporarily removed for debugging
 #include <vector>
 #include <string>
@@ -58,8 +59,7 @@ class RobCoTerminal : public Component {
   void loop() override;
   void dump_config() override;
   
-  // Configuration setters
-  void set_display(display::DisplayBuffer *display) { this->display_ = display; }
+  // Configuration setters - removed set_display since we use integrated Arduino_GFX
   void set_mqtt_topic_prefix(const std::string &prefix) { this->mqtt_topic_prefix_ = prefix; }
   void set_boot_sequence(bool enabled) { this->boot_sequence_ = enabled; }
   void set_cursor_blink(bool enabled) { this->cursor_blink_ = enabled; }
@@ -86,16 +86,24 @@ class RobCoTerminal : public Component {
   void on_mqtt_message(const std::string &topic, const std::string &payload);
   void publish_mqtt_message(const std::string &topic, const std::string &payload);
   
-  // Display rendering
-  void render_display(display::DisplayBuffer &it);
-  
+  // Display rendering - now renders directly to Arduino_GFX
+  void render_display();
+
+ private:
+  void initialize_display();
+
  protected:
-  display::DisplayBuffer *display_{nullptr};
+  // Removed display_ since we use integrated Arduino_GFX
   std::string mqtt_topic_prefix_;
   bool boot_sequence_;
   bool cursor_blink_;
   uint32_t font_color_;
   uint32_t background_color_;
+  
+  // Arduino_GFX objects - use void pointers to avoid header conflicts
+  void *bus_{nullptr};
+  void *rgbpanel_{nullptr};
+  void *gfx_{nullptr};
   
   // Terminal state
   TerminalState current_state_;
@@ -128,11 +136,11 @@ class RobCoTerminal : public Component {
   // Private methods
   void init_boot_sequence();
   void update_boot_sequence();
-  void render_boot_screen(display::DisplayBuffer &it);
-  void render_main_menu(display::DisplayBuffer &it);
-  void render_submenu(display::DisplayBuffer &it);
-  void render_text_editor(display::DisplayBuffer &it);
-  void render_action_screen(display::DisplayBuffer &it);
+  void render_boot_screen();
+  void render_main_menu();
+  void render_submenu();
+  void render_text_editor();
+  void render_action_screen();
   
   void navigate_up();
   void navigate_down();
@@ -146,9 +154,9 @@ class RobCoTerminal : public Component {
   void update_menu_visibility();
   void update_status_values();
   
-  // Text rendering
-  void draw_text(display::DisplayBuffer &it, int x, int y, const std::string &text, uint32_t color = 0);
-  void draw_char(display::DisplayBuffer &it, int x, int y, char c, uint32_t color = 0);
+  // Arduino_GFX text rendering methods
+  void draw_text(int x, int y, const std::string &text, uint32_t color = 0);
+  void draw_char(int x, int y, char c, uint32_t color = 0);
   void clear_screen();
   void scroll_up();
   void scroll_down();

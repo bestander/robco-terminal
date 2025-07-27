@@ -54,7 +54,7 @@ logger:
 # USB Host for keyboard support (commented out for initial setup)
 # usb_host:
 
-# Custom external components (commented out for initial validation)
+# Custom external components - load from components directory
 external_components:
   - source:
       type: local
@@ -65,82 +65,77 @@ psram:
   mode: octal
   speed: 80MHz
 
-# SPI for basic display communication (even RGB displays often need SPI for init)
+# SPI configured with unused pins to provide SPI.h for Arduino_GFX
+# These pins are NOT used by the RGB display, just needed for compilation
 spi:
-  clk_pin: GPIO7
-  mosi_pin: GPIO6
+  clk_pin: GPIO12   # Free pin, not used by RGB display
+  mosi_pin: GPIO11  # Free pin, not used by RGB display
+  # This is only for SPI.h compilation, Arduino_GFX uses its own SWSPI
 
 # I2C for Wire.h dependency (even if not used directly)
 i2c:
   sda: GPIO8
   scl: GPIO9
 
-# Font for display
-font:
-  - file: "gfonts://Roboto Mono"
-    id: terminal_font
-    size: 16
+# Font temporarily disabled to test if it's clearing the display
+# font:
+#   - file: "gfonts://Roboto Mono"
+#     id: terminal_font
+#     size: 16
 
-# Display configuration for 7" 800x480 RGB LCD using Arduino_GFX
-# Simple HelloWorld demo - hardcoded pins from HelloWorld.ino
-arduino_gfx_display:
-  id: arduino_display
-
-# Custom RobCo Terminal component (temporarily disabled since we're testing the display)
-# robco_terminal:
-#   id: terminal
-#   display_id: arduino_display
-#   keyboard_id: usb_keyboard
-#   mqtt_topic_prefix: "robco_terminal"
-#   
-#   # Terminal configuration
-#   boot_sequence: true
-#   cursor_blink: true
-#   font_color: 0x00FF00  # Classic green
-#   background_color: 0x000000  # Black
-#   
-#   # Menu structure
-#   menu_items:
-#     - title: "VAULT DOOR CONTROL"
-#       type: submenu
-#       items:
-#         - title: "Door Status"
-#           type: status
-#           mqtt_topic: "vault/door/status"
-#           readonly: true
-#         - title: "Open Door"
-#           type: action
-#           mqtt_topic: "vault/door/command"
-#           mqtt_payload: "OPEN"
-#           condition_topic: "vault/door/status"
-#           condition_value: "CLOSED"
-#         - title: "Close Door"
-#           type: action
-#           mqtt_topic: "vault/door/command"
-#           mqtt_payload: "CLOSE"
-#           condition_topic: "vault/door/status"
-#           condition_value: "OPEN"
-#           
-#     - title: "SECURITY SYSTEM"
-#       type: submenu
-#       items:
-#         - title: "System Status"
-#           type: status
-#           mqtt_topic: "security/status"
-#           readonly: true
-#         - title: "Arm System"
-#           type: action
-#           mqtt_topic: "security/command"
-#           mqtt_payload: "ARM"
-#         - title: "Disarm System"
-#           type: action
-#           mqtt_topic: "security/command"
-#           mqtt_payload: "DISARM"
-#           
-#     - title: "TERMINAL LOGS"
-#       type: text_editor
-#       file_path: "/logs/terminal.log"
-#       max_entries: 100
+# RobCo Terminal with integrated Arduino_GFX display
+robco_terminal:
+  id: terminal
+  mqtt_topic_prefix: "robco_terminal"
+  
+  # Terminal configuration
+  boot_sequence: true
+  cursor_blink: true
+  font_color: 0x00FF00  # Classic green
+  background_color: 0x000000  # Black
+  
+  # Menu structure
+  menu_items:
+    - title: "VAULT DOOR CONTROL"
+      type: submenu
+      items:
+        - title: "Door Status"
+          type: status
+          mqtt_topic: "vault/door/status"
+          readonly: true
+        - title: "Open Door"
+          type: action
+          mqtt_topic: "vault/door/command"
+          mqtt_payload: "OPEN"
+          condition_topic: "vault/door/status"
+          condition_value: "CLOSED"
+        - title: "Close Door"
+          type: action
+          mqtt_topic: "vault/door/command"
+          mqtt_payload: "CLOSE"
+          condition_topic: "vault/door/status"
+          condition_value: "OPEN"
+          
+    - title: "SECURITY SYSTEM"
+      type: submenu
+      items:
+        - title: "System Status"
+          type: status
+          mqtt_topic: "security/status"
+          readonly: true
+        - title: "Arm System"
+          type: action
+          mqtt_topic: "security/command"
+          mqtt_payload: "ARM"
+        - title: "Disarm System"
+          type: action
+          mqtt_topic: "security/command"
+          mqtt_payload: "DISARM"
+          
+    - title: "TERMINAL LOGS"
+      type: text_editor
+      file_path: "/logs/terminal.log"
+      max_entries: 100
 
 # USB Keyboard (commented out for initial setup)
 # usb_keyboard:

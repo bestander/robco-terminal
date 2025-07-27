@@ -3,6 +3,11 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/color.h"
 
+// Include Arduino_GFX for direct display rendering
+#include <Wire.h>
+#include <SPI.h>
+#include <Arduino_GFX_Library.h>
+
 namespace esphome {
 namespace robco_terminal {
 
@@ -14,13 +19,8 @@ static const uint8_t TERMINAL_FONT[128][16] = {
 };
 
 void RobCoTerminal::setup() {
-  // Basic Arduino Serial for debugging
-  Serial.begin(115200);
-  Serial.println("=== RobCo Terminal Setup Starting ===");
-  
-  ESP_LOGCONFIG(TAG, "Setting up RobCo Terminal...");
+  ESP_LOGCONFIG(TAG, "RobCo Terminal setup - deferring display initialization to loop()");
   ESP_LOGI(TAG, "RobCo Terminal setup starting");
-  Serial.println("ESP logs initialized");
   
   this->current_state_ = TerminalState::BOOTING;
   this->boot_complete_ = false;
@@ -32,56 +32,85 @@ void RobCoTerminal::setup() {
   this->last_cursor_toggle_ = millis();
   this->current_menu_ = &this->main_menu_;
   
-  Serial.println("State variables initialized");
   ESP_LOGI(TAG, "RobCo Terminal state initialized");
   
   // Initialize screen buffer
   this->screen_buffer_.resize(TerminalFont::LINES_PER_SCREEN);
-  Serial.printf("Screen buffer initialized with %d lines\n", TerminalFont::LINES_PER_SCREEN);
   ESP_LOGI(TAG, "Screen buffer initialized with %d lines", TerminalFont::LINES_PER_SCREEN);
   
   if (this->boot_sequence_) {
-    Serial.println("Initializing boot sequence");
     ESP_LOGI(TAG, "Initializing boot sequence");
     this->init_boot_sequence();
   } else {
-    Serial.println("Skipping boot sequence, going directly to main menu");
     ESP_LOGI(TAG, "Skipping boot sequence, going directly to main menu");
     this->boot_complete_ = true;
     this->current_state_ = TerminalState::MAIN_MENU;
   }
   
-  // Check if display is connected
-  if (this->display_) {
-    Serial.println("Display connected successfully");
-    ESP_LOGI(TAG, "Display connected successfully");
-  } else {
-    Serial.println("ERROR: Display not connected!");
-    ESP_LOGE(TAG, "Display not connected!");
-  }
-  
-  Serial.println("=== RobCo Terminal Setup Complete ===");
   ESP_LOGCONFIG(TAG, "RobCo Terminal setup complete");
-  ESP_LOGI(TAG, "RobCo Terminal setup finished successfully");
+}
+
+void RobCoTerminal::initialize_display() {
+  ESP_LOGCONFIG(TAG, "Initializing Arduino_GFX display for RobCo Terminal...");
+  
+  // Exact copy from HelloWorld.ino
+  #define TFT_BL 2
+  
+  // Define a data bus (e.g., SPI) - exact from HelloWorld.ino
+  auto *bus = new Arduino_SWSPI(
+      GFX_NOT_DEFINED /* DC */, 39 /* CS */, 48 /* SCK */, 47 /* MOSI */, GFX_NOT_DEFINED /* MISO */
+  );
+
+  // Define the RGB panel - exact from HelloWorld.ino  
+  auto *rgbpanel = new Arduino_ESP32RGBPanel(
+      41 /* DE */, 40 /* VSYNC */, 39 /* HSYNC */, 42 /* PCLK */,
+      14 /* R0 */, 21 /* R1 */, 47 /* R2 */, 48 /* R3 */, 45 /* R4 */,
+      9 /* G0 */, 46 /* G1 */, 3 /* G2 */, 8 /* G3 */, 16 /* G4 */, 1 /* G5 */,
+      15 /* B0 */, 7 /* B1 */, 6 /* B2 */, 5 /* B3 */, 4 /* B4 */,
+      0 /* hsync_polarity */, 210 /* hsync_front_porch */, 30 /* hsync_pulse_width */, 16 /* hsync_back_porch */,
+      0 /* vsync_polarity */, 22 /* vsync_front_porch */, 13 /* vsync_pulse_width */, 10 /* vsync_back_porch */,
+      1 /* pclk_active_neg */, 16000000 /* prefer_speed */
+  );
+
+  // Store the bus and panel
+  this->bus_ = bus;
+  this->rgbpanel_ = rgbpanel;
+
+  // Define the display with the ST7701 driver - exact from HelloWorld.ino
+  auto *display = new Arduino_RGB_Display(
+      800 /* width */, 480 /* height */, rgbpanel, 0 /* rotation */, true /* auto_flush */,
+      bus, GFX_NOT_DEFINED /* RST */, st7701_type1_init_operations, sizeof(st7701_type1_init_operations)
+  );
+    
+  // Store the display
+  this->gfx_ = display;
+
+  // Begin the display - exact from HelloWorld.ino
+  display->begin();
+  display->fillScreen(BLACK);  // BLACK background for terminal
+  
+  #ifdef TFT_BL
+    pinMode(TFT_BL, OUTPUT);
+    digitalWrite(TFT_BL, HIGH);
+  #endif
+
+  ESP_LOGCONFIG(TAG, "Arduino_GFX display initialized for RobCo Terminal!");
 }
 
 void RobCoTerminal::loop() {
-  static uint32_t last_debug_log = 0;
-  static uint32_t last_serial_debug = 0;
+  static bool display_initialized = false;
+  static uint32_t last_render = 0;
   uint32_t now = millis();
   
-  // Serial debug every 10 seconds
-  if (now - last_serial_debug > 10000) {
-    Serial.printf("[%lu] RobCo Terminal loop - state: %d, boot_complete: %s\n", 
-                  now, (int)this->current_state_, this->boot_complete_ ? "true" : "false");
-    last_serial_debug = now;
+  // Initialize display in loop after all ESPHome components are ready
+  if (!display_initialized && now > 2000) { // Wait 2 seconds for ESPHome to stabilize
+    this->initialize_display();
+    display_initialized = true;
+    return; // Exit early this iteration
   }
   
-  // Debug logging every 5 seconds
-  if (now - last_debug_log > 5000) {
-    ESP_LOGI(TAG, "RobCo Terminal loop running - state: %d, boot_complete: %s", 
-             (int)this->current_state_, this->boot_complete_ ? "true" : "false");
-    last_debug_log = now;
+  if (!display_initialized) {
+    return; // Wait for display initialization
   }
   
   // Handle cursor blinking
@@ -100,6 +129,22 @@ void RobCoTerminal::loop() {
   
   // Update status values
   this->update_status_values();
+  
+  // Render display only every 100ms (10 FPS) or when cursor blinks
+  bool should_render = false;
+  if ((now - last_render) > 100) { // 10 FPS refresh rate
+    should_render = true;
+    last_render = now;
+  }
+  
+  // Force render when cursor state changes (for smooth blinking)
+  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) < 50) {
+    should_render = true;
+  }
+  
+  if (should_render) {
+    this->render_display();
+  }
 }
 
 void RobCoTerminal::dump_config() {
@@ -110,7 +155,7 @@ void RobCoTerminal::dump_config() {
   ESP_LOGCONFIG(TAG, "  Font Color: 0x%06X", this->font_color_);
   ESP_LOGCONFIG(TAG, "  Background Color: 0x%06X", this->background_color_);
   ESP_LOGCONFIG(TAG, "  Menu Items: %d", this->main_menu_.size());
-  ESP_LOGCONFIG(TAG, "  Display Connected: %s", this->display_ ? "YES" : "NO");
+  ESP_LOGCONFIG(TAG, "  Arduino_GFX Display: %s", this->gfx_ ? "YES" : "NO");
   
   // Log menu structure
   for (size_t i = 0; i < this->main_menu_.size(); i++) {
@@ -168,137 +213,170 @@ void RobCoTerminal::update_boot_sequence() {
   }
 }
 
-void RobCoTerminal::render_display(display::DisplayBuffer &it) {
-  // Clear screen with background color
-  it.fill(Color(this->background_color_));
+void RobCoTerminal::render_display() {
+  if (!this->gfx_) return; // Display not initialized yet
+  
+  // Cast back to Arduino_RGB_Display*
+  auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
+  
+  // Clear screen with black background
+  display->fillScreen(BLACK);
   
   switch (this->current_state_) {
     case TerminalState::BOOTING:
-      this->render_boot_screen(it);
+      this->render_boot_screen();
       break;
     case TerminalState::MAIN_MENU:
-      this->render_main_menu(it);
+      this->render_main_menu();
       break;
     case TerminalState::SUBMENU:
-      this->render_submenu(it);
+      this->render_submenu();
       break;
     case TerminalState::TEXT_EDITOR:
-      this->render_text_editor(it);
+      this->render_text_editor();
       break;
     case TerminalState::EXECUTING_ACTION:
-      this->render_action_screen(it);
+      this->render_action_screen();
       break;
   }
 }
 
-void RobCoTerminal::render_boot_screen(display::DisplayBuffer &it) {
+void RobCoTerminal::render_boot_screen() {
   int y = 20;
   for (int i = 0; i < this->boot_line_ && i < this->boot_messages_.size(); i++) {
-    this->draw_text(it, 10, y, this->boot_messages_[i], this->font_color_);
-    y += TerminalFont::CHAR_HEIGHT;
+    this->draw_text(10, y, this->boot_messages_[i], this->font_color_);
+    y += TerminalFont::CHAR_HEIGHT + 2; // Small line spacing
   }
   
   // Show cursor on last line if waiting for input
   if (this->boot_line_ >= this->boot_messages_.size() && this->cursor_visible_) {
-    int cursor_x = 10 + (this->boot_messages_.back().length() * TerminalFont::CHAR_WIDTH);
-    this->draw_char(it, cursor_x, y - TerminalFont::CHAR_HEIGHT, '_', this->font_color_);
+    int cursor_x = 10 + (this->boot_messages_.back().length() * 8); // Approximate char width
+    this->draw_char(cursor_x, y - TerminalFont::CHAR_HEIGHT, '_', this->font_color_);
   }
 }
 
-void RobCoTerminal::render_main_menu(display::DisplayBuffer &it) {
-  // Header
-  this->draw_text(it, 10, 20, "ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL", this->font_color_);
-  this->draw_text(it, 10, 40, "ENTER PASSWORD NOW", this->font_color_);
-  this->draw_text(it, 10, 60, "> WELCOME, OVERSEER", this->font_color_);
-  this->draw_text(it, 10, 80, "", this->font_color_);
+void RobCoTerminal::render_main_menu() {
+  // Header with classic RobCo styling
+  this->draw_text(10, 20, "ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL", this->font_color_);
+  this->draw_text(10, 50, "ENTER PASSWORD NOW", this->font_color_);
+  this->draw_text(10, 80, "> WELCOME, OVERSEER", this->font_color_);
+  this->draw_text(10, 100, std::string(60, '='), this->font_color_); // Separator line
   
   // Menu items
-  int y = 120;
+  int y = 140;
   for (size_t i = 0; i < this->main_menu_.size(); i++) {
     if (this->should_show_item(this->main_menu_[i])) {
       std::string line = this->format_menu_item(this->main_menu_[i], i == this->selected_index_);
-      uint32_t color = (i == this->selected_index_) ? 0xFFFF00 : this->font_color_; // Yellow for selected
-      this->draw_text(it, 30, y, line, color);
+      uint32_t color = (i == this->selected_index_) ? 0xFFFF00 : this->font_color_; // Yellow for selected, green for normal
+      this->draw_text(30, y, line, color);
       y += TerminalFont::CHAR_HEIGHT + 4;
     }
   }
   
-  // Status line
-  this->draw_text(it, 10, 450, "Use ARROW KEYS to navigate, ENTER to select, ESC to go back", this->font_color_);
+  // Status line at bottom
+  this->draw_text(10, 450, "Use ARROW KEYS to navigate, ENTER to select, ESC to go back", this->font_color_);
 }
 
-void RobCoTerminal::render_submenu(display::DisplayBuffer &it) {
+void RobCoTerminal::render_submenu() {
   if (this->menu_stack_.empty()) return;
   
   int parent_index = this->menu_stack_.back();
   const MenuItem &parent = this->main_menu_[parent_index];
   
   // Header
-  this->draw_text(it, 10, 20, "ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL", this->font_color_);
-  this->draw_text(it, 10, 40, parent.title, this->font_color_);
-  this->draw_text(it, 10, 60, std::string(parent.title.length(), '='), this->font_color_);
+  this->draw_text(10, 20, "ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL", this->font_color_);
+  this->draw_text(10, 50, parent.title, this->font_color_);
+  this->draw_text(10, 80, std::string(parent.title.length(), '='), this->font_color_);
   
   // Submenu items
-  int y = 100;
+  int y = 120;
   for (size_t i = 0; i < parent.subitems.size(); i++) {
     if (this->should_show_item(parent.subitems[i])) {
       std::string line = this->format_menu_item(parent.subitems[i], i == this->selected_index_);
       uint32_t color = (i == this->selected_index_) ? 0xFFFF00 : this->font_color_;
-      this->draw_text(it, 30, y, line, color);
+      this->draw_text(30, y, line, color);
       y += TerminalFont::CHAR_HEIGHT + 4;
     }
   }
   
   // Status line
-  this->draw_text(it, 10, 450, "Use ARROW KEYS to navigate, ENTER to select, ESC to go back", this->font_color_);
+  this->draw_text(10, 450, "Use ARROW KEYS to navigate, ENTER to select, ESC to go back", this->font_color_);
 }
 
-void RobCoTerminal::render_text_editor(display::DisplayBuffer &it) {
+void RobCoTerminal::render_text_editor() {
   // Header
-  this->draw_text(it, 10, 20, "TERMINAL LOG EDITOR", this->font_color_);
-  this->draw_text(it, 10, 40, "==================", this->font_color_);
+  this->draw_text(10, 20, "TERMINAL LOG EDITOR", this->font_color_);
+  this->draw_text(10, 50, std::string(20, '='), this->font_color_);
   
   // Content area
-  int y = 80;
+  int y = 90;
   std::vector<std::string> lines = this->split_string(this->editor_content_, '\n');
   
   for (size_t i = this->scroll_offset_; i < lines.size() && y < 400; i++) {
-    this->draw_text(it, 10, y, lines[i], this->font_color_);
-    y += TerminalFont::CHAR_HEIGHT;
+    this->draw_text(10, y, lines[i], this->font_color_);
+    y += TerminalFont::CHAR_HEIGHT + 2;
   }
   
   // Cursor
   if (this->cursor_visible_) {
-    // Calculate cursor position based on editor_cursor_pos_
-    // This is simplified - full implementation would handle line wrapping
-    int cursor_line = this->editor_cursor_pos_ / TerminalFont::CHARS_PER_LINE;
-    int cursor_col = this->editor_cursor_pos_ % TerminalFont::CHARS_PER_LINE;
-    int cursor_x = 10 + (cursor_col * TerminalFont::CHAR_WIDTH);
-    int cursor_y = 80 + ((cursor_line - this->scroll_offset_) * TerminalFont::CHAR_HEIGHT);
+    // Simplified cursor position
+    int cursor_line = this->editor_cursor_pos_ / 80; // Chars per line
+    int cursor_col = this->editor_cursor_pos_ % 80;
+    int cursor_x = 10 + (cursor_col * 8); // Approximate char width
+    int cursor_y = 90 + ((cursor_line - this->scroll_offset_) * (TerminalFont::CHAR_HEIGHT + 2));
     
-    if (cursor_y >= 80 && cursor_y < 400) {
-      this->draw_char(it, cursor_x, cursor_y, '_', this->font_color_);
+    if (cursor_y >= 90 && cursor_y < 400) {
+      this->draw_char(cursor_x, cursor_y, '_', this->font_color_);
     }
   }
   
   // Status line
-  this->draw_text(it, 10, 450, "ESC to save and exit, CTRL+S to save", this->font_color_);
+  this->draw_text(10, 450, "ESC to save and exit, CTRL+S to save", this->font_color_);
 }
 
-void RobCoTerminal::draw_text(display::DisplayBuffer &it, int x, int y, const std::string &text, uint32_t color) {
-  if (color == 0) color = this->font_color_;
+void RobCoTerminal::render_action_screen() {
+  // Header
+  this->draw_text(10, 200, "EXECUTING ACTION...", this->font_color_);
+  this->draw_text(10, 240, "Please wait...", this->font_color_);
+}
+
+void RobCoTerminal::draw_text(int x, int y, const std::string &text, uint32_t color) {
+  if (!this->gfx_ || text.empty()) return;
   
-  // For now, use simple pixel drawing - this is a placeholder
-  // In a real implementation, you'd need to implement font rendering
-  // or use ESPHome's font system with proper BaseFont
+  // Cast back to Arduino_RGB_Display*
+  auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
+  
+  // Use default green color if not specified (Fallout terminal style)
+  if (color == 0) color = 0x00FF00; // Bright green
+  
+  // Set cursor and color
+  display->setCursor(x, y);
+  display->setTextColor(color);
+  display->setTextSize(1, 1); // Standard size
+  
+  // Print the text
+  display->print(text.c_str());
+  
   ESP_LOGD(TAG, "Drawing text at (%d,%d): %s", x, y, text.c_str());
 }
 
-void RobCoTerminal::draw_char(display::DisplayBuffer &it, int x, int y, char c, uint32_t color) {
-  if (color == 0) color = this->font_color_;
+void RobCoTerminal::draw_char(int x, int y, char c, uint32_t color) {
+  if (!this->gfx_) return;
   
-  // For now, use simple pixel drawing - this is a placeholder
-  // In a real implementation, you'd need to implement character rendering
+  // Cast back to Arduino_RGB_Display*
+  auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
+  
+  // Use default green color if not specified
+  if (color == 0) color = 0x00FF00; // Bright green
+  
+  // Set cursor and color
+  display->setCursor(x, y);
+  display->setTextColor(color);
+  display->setTextSize(1, 1);
+  
+  // Print the character
+  display->print(c);
+  
   ESP_LOGD(TAG, "Drawing char at (%d,%d): %c", x, y, c);
 }
 
@@ -403,6 +481,12 @@ void RobCoTerminal::navigate_escape() {
 }
 
 void RobCoTerminal::clear_screen() {
+  if (this->gfx_) {
+    // Cast back to Arduino_RGB_Display*
+    auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
+    display->fillScreen(BLACK);
+  }
+  
   // Clear the screen buffer
   for (auto &line : this->screen_buffer_) {
     line.clear();
@@ -412,12 +496,6 @@ void RobCoTerminal::clear_screen() {
 void RobCoTerminal::handle_text_editor_input(uint16_t key, uint8_t modifiers) {
   // TODO: Implement text editor input handling
   ESP_LOGD(TAG, "Text editor input: key=0x%04X, modifiers=0x%02X", key, modifiers);
-}
-
-void RobCoTerminal::render_action_screen(display::DisplayBuffer &it) {
-  // Header
-  this->draw_text(it, 10, 20, "EXECUTING ACTION...", this->font_color_);
-  this->draw_text(it, 10, 40, "Please wait...", this->font_color_);
 }
 
 void RobCoTerminal::execute_action(const MenuItem &item) {

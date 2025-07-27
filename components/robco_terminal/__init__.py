@@ -1,6 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import display
+# from esphome.components import display  # Removed since we use integrated Arduino_GFX
 # from esphome.components import mqtt  # Temporarily removed for debugging
 from esphome.const import CONF_ID, CONF_LAMBDA
 
@@ -11,7 +11,6 @@ CODEOWNERS = ["@your_github_username"]
 robco_terminal_ns = cg.esphome_ns.namespace("robco_terminal")
 RobCoTerminal = robco_terminal_ns.class_("RobCoTerminal", cg.Component)
 
-CONF_DISPLAY_ID = "display_id"
 CONF_KEYBOARD_ID = "keyboard_id"
 CONF_MQTT_TOPIC_PREFIX = "mqtt_topic_prefix"
 CONF_BOOT_SEQUENCE = "boot_sequence"
@@ -90,7 +89,6 @@ MENU_ITEM_SCHEMA = cv.All(
 
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(RobCoTerminal),
-    cv.Required(CONF_DISPLAY_ID): cv.use_id(display.DisplayBuffer),
     cv.Optional(CONF_KEYBOARD_ID): cv.string,
     cv.Optional(CONF_MQTT_TOPIC_PREFIX, default="robco_terminal"): cv.string,
     cv.Optional(CONF_BOOT_SEQUENCE, default=True): cv.boolean,
@@ -104,9 +102,8 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     
-    # Set display
-    display_var = await cg.get_variable(config[CONF_DISPLAY_ID])
-    cg.add(var.set_display(display_var))
+    # Add Arduino_GFX library dependency
+    cg.add_library("moononournation/GFX Library for Arduino", "1.6.0")
     
     # Set configuration
     cg.add(var.set_mqtt_topic_prefix(config[CONF_MQTT_TOPIC_PREFIX]))
