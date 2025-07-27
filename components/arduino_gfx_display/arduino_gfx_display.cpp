@@ -69,7 +69,7 @@ void ArduinoGFXDisplay::loop() {
   static bool display_initialized = false;
   
   // Initialize display in loop after all ESPHome components are ready
-  if (!display_initialized) { // Wait 2 seconds for ESPHome to stabilize
+  if (!display_initialized) {
     this->initialize_display();
     display_initialized = true;
     return; // Exit early this iteration
