@@ -37,14 +37,18 @@ void RobCoTerminal::setup() {
   ESP_LOGI(TAG, "RobCo Terminal setup starting");
   
   this->current_state_ = TerminalState::BOOTING;
+  this->last_rendered_state_ = TerminalState::BOOTING;
   this->boot_complete_ = false;
   this->boot_start_time_ = millis();
   this->boot_line_ = 0;
   this->selected_index_ = 0;
+  this->last_rendered_selected_index_ = -1;  // Force initial render
   this->scroll_offset_ = 0;
   this->cursor_visible_ = true;
   this->last_cursor_toggle_ = millis();
   this->current_menu_ = &this->main_menu_;
+  this->content_changed_ = true;  // Force initial render
+  this->cursor_state_changed_ = false;
   
   ESP_LOGI(TAG, "RobCo Terminal state initialized");
   
@@ -131,11 +135,23 @@ void RobCoTerminal::loop() {
   if (this->cursor_blink_ && (now - this->last_cursor_toggle_) > 1000) { // 1 second blink rate
     this->cursor_visible_ = !this->cursor_visible_;
     this->last_cursor_toggle_ = now;
+    this->cursor_state_changed_ = true;
   }
   
   // Handle boot sequence
   if (!this->boot_complete_ && this->current_state_ == TerminalState::BOOTING) {
     this->update_boot_sequence();
+  }
+  
+  // Check for state changes that require full redraw
+  if (this->current_state_ != this->last_rendered_state_) {
+    this->content_changed_ = true;
+    this->last_rendered_state_ = this->current_state_;
+  }
+  
+  if (this->selected_index_ != this->last_rendered_selected_index_) {
+    this->content_changed_ = true;
+    this->last_rendered_selected_index_ = this->selected_index_;
   }
   
   // Update menu visibility based on MQTT states
@@ -144,20 +160,25 @@ void RobCoTerminal::loop() {
   // Update status values
   this->update_status_values();
   
-  // Render display only every 500ms (2 FPS) for retro terminal feel
+  // Render display only when content changes or for cursor updates
+  // But limit cursor updates to maximum 2 FPS (500ms minimum interval)
   bool should_render = false;
-  if ((now - last_render) > 500) { // 2 FPS refresh rate
+  bool needs_full_redraw = false;
+  
+  if (this->content_changed_) {
+    // Content changes always render immediately for responsive navigation
     should_render = true;
+    needs_full_redraw = true;
+    this->content_changed_ = false;
+    this->render_display(needs_full_redraw);
     last_render = now;
-  }
-  
-  // Force render when cursor state changes (for smooth blinking)
-  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) < 100) {
+  } else if (this->cursor_state_changed_ && this->cursor_blink_ && (now - last_render) > 500) {
+    // Cursor updates limited to 2 FPS max
     should_render = true;
-  }
-  
-  if (should_render) {
-    this->render_display();
+    needs_full_redraw = false;  // Just cursor update
+    this->cursor_state_changed_ = false;
+    this->render_display(needs_full_redraw);
+    last_render = now;
   }
 }
 
@@ -187,23 +208,29 @@ void RobCoTerminal::init_boot_sequence() {
     "RobCo Industries (TM) Termlink Protocol",
     "Established 2075",
     "",
+    "VAULT-TEC TERMINAL SYSTEM",
     "Initializing...",
+    "",
     "Boot Sequence Started",
     "Loading System Drivers...",
     "Checking Memory Banks...",
+    "Memory Test: OK",
     "8MB PSRAM Detected",
     "16MB Flash Storage Available",
+    "",
     "Network Interface: ONLINE",
     "MQTT Client: CONNECTING...",
     "Home Assistant Integration: READY",
+    "Security Protocols: ACTIVE",
     "",
     "System Status: NOMINAL",
     "Security Level: AUTHORIZED",
+    "Access Level: OVERSEER",
     "",
-    "Welcome to Vault-Tec Terminal System",
+    "Welcome to RobCo Termlink",
     "Have a Nice Day!",
     "",
-    "Press any key to continue..."
+    "> Press any key to continue..."
   };
   ESP_LOGI(TAG, "Boot sequence initialized with %d messages", this->boot_messages_.size());
 }
@@ -216,6 +243,7 @@ void RobCoTerminal::update_boot_sequence() {
     ESP_LOGI(TAG, "Boot line %d: %s", this->boot_line_, 
              this->boot_line_ < this->boot_messages_.size() ? this->boot_messages_[this->boot_line_].c_str() : "");
     this->boot_line_++;
+    this->content_changed_ = true;  // Mark for redraw
   }
   
   // Boot complete after all messages shown + 2 seconds
@@ -224,17 +252,20 @@ void RobCoTerminal::update_boot_sequence() {
     this->boot_complete_ = true;
     this->current_state_ = TerminalState::MAIN_MENU;
     this->clear_screen();
+    this->content_changed_ = true;  // Mark for redraw
   }
 }
 
-void RobCoTerminal::render_display() {
+void RobCoTerminal::render_display(bool full_redraw) {
   if (!this->gfx_) return; // Display not initialized yet
   
   // Cast back to Arduino_RGB_Display*
   auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
   
-  // Clear screen with black background
-  display->fillScreen(BLACK);
+  // Only clear screen when doing a full redraw (content changes)
+  if (full_redraw) {
+    display->fillScreen(BLACK);
+  }
   
   switch (this->current_state_) {
     case TerminalState::BOOTING:
@@ -253,42 +284,47 @@ void RobCoTerminal::render_display() {
       this->render_action_screen();
       break;
   }
+  
+  // Add scan lines for authentic CRT effect (only on full redraw to avoid flicker)
+  if (full_redraw) {
+    this->render_scan_lines();
+  }
 }
 
 void RobCoTerminal::render_boot_screen() {
-  int y = 20;
+  int y = 30; // Start lower to accommodate larger font
   for (int i = 0; i < this->boot_line_ && i < this->boot_messages_.size(); i++) {
-    this->draw_text(10, y, this->boot_messages_[i], this->font_color_);
-    y += TerminalFont::CHAR_HEIGHT + 2; // Small line spacing
+    this->draw_text(20, y, this->boot_messages_[i], this->font_color_);
+    y += 20; // Larger line spacing for bigger font
   }
   
   // Show cursor on last line if waiting for input
   if (this->boot_line_ >= this->boot_messages_.size() && this->cursor_visible_) {
-    int cursor_x = 10 + (this->boot_messages_.back().length() * 8); // Approximate char width
-    this->draw_char(cursor_x, y - TerminalFont::CHAR_HEIGHT, '_', this->font_color_);
+    int cursor_x = 20 + (this->boot_messages_.back().length() * 12); // Approximate char width for 2x font
+    this->draw_char(cursor_x, y - 20, '_', this->font_color_);
   }
 }
 
 void RobCoTerminal::render_main_menu() {
-  // Header with classic RobCo styling
-  this->draw_text(10, 20, "ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL", this->font_color_);
-  this->draw_text(10, 50, "ENTER PASSWORD NOW", this->font_color_);
-  this->draw_text(10, 80, "> WELCOME, OVERSEER", this->font_color_);
-  this->draw_text(10, 100, std::string(60, '='), this->font_color_); // Separator line
+  // Header with classic RobCo styling - adjusted for larger font
+  this->draw_text(20, 30, "ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL", this->font_color_);
+  this->draw_text(20, 60, "ENTER PASSWORD NOW", this->font_color_);
+  this->draw_text(20, 90, "> WELCOME, OVERSEER", this->font_color_);
+  this->draw_text(20, 120, std::string(50, '='), this->font_color_); // Shorter separator line for larger font
   
-  // Menu items
-  int y = 140;
+  // Menu items with more spacing
+  int y = 160;
   for (size_t i = 0; i < this->main_menu_.size(); i++) {
     if (this->should_show_item(this->main_menu_[i])) {
       std::string line = this->format_menu_item(this->main_menu_[i], i == this->selected_index_);
       uint32_t color = (i == this->selected_index_) ? 0x80FF80 : this->font_color_; // Brighter version of green
-      this->draw_text(30, y, line, color);
-      y += TerminalFont::CHAR_HEIGHT + 4;
+      this->draw_text(40, y, line, color);
+      y += 25; // Larger spacing for bigger font
     }
   }
   
   // Status line at bottom
-  this->draw_text(10, 450, "Use ARROW KEYS to navigate, ENTER to select, ESC to go back", this->font_color_);
+  this->draw_text(20, 440, "Use ARROW KEYS to navigate, ENTER to select", this->font_color_);
 }
 
 void RobCoTerminal::render_submenu() {
@@ -297,61 +333,61 @@ void RobCoTerminal::render_submenu() {
   int parent_index = this->menu_stack_.back();
   const MenuItem &parent = this->main_menu_[parent_index];
   
-  // Header
-  this->draw_text(10, 20, "ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL", this->font_color_);
-  this->draw_text(10, 50, parent.title, this->font_color_);
-  this->draw_text(10, 80, std::string(parent.title.length(), '='), this->font_color_);
+  // Header with larger font spacing
+  this->draw_text(20, 30, "ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL", this->font_color_);
+  this->draw_text(20, 60, parent.title, this->font_color_);
+  this->draw_text(20, 90, std::string(parent.title.length(), '='), this->font_color_);
   
-  // Submenu items
-  int y = 120;
+  // Submenu items with proper spacing
+  int y = 130;
   for (size_t i = 0; i < parent.subitems.size(); i++) {
     if (this->should_show_item(parent.subitems[i])) {
       std::string line = this->format_menu_item(parent.subitems[i], i == this->selected_index_);
       uint32_t color = (i == this->selected_index_) ? 0x80FF80 : this->font_color_;
-      this->draw_text(30, y, line, color);
-      y += TerminalFont::CHAR_HEIGHT + 4;
+      this->draw_text(40, y, line, color);
+      y += 25; // Larger spacing for bigger font
     }
   }
   
   // Status line
-  this->draw_text(10, 450, "Use ARROW KEYS to navigate, ENTER to select, ESC to go back", this->font_color_);
+  this->draw_text(20, 440, "Use ARROW KEYS to navigate, ENTER to select", this->font_color_);
 }
 
 void RobCoTerminal::render_text_editor() {
-  // Header
-  this->draw_text(10, 20, "TERMINAL LOG EDITOR", this->font_color_);
-  this->draw_text(10, 50, std::string(20, '='), this->font_color_);
+  // Header with larger font
+  this->draw_text(20, 30, "TERMINAL LOG EDITOR", this->font_color_);
+  this->draw_text(20, 60, std::string(20, '='), this->font_color_);
   
-  // Content area
-  int y = 90;
+  // Content area with adjusted spacing
+  int y = 100;
   std::vector<std::string> lines = this->split_string(this->editor_content_, '\n');
   
-  for (size_t i = this->scroll_offset_; i < lines.size() && y < 400; i++) {
-    this->draw_text(10, y, lines[i], this->font_color_);
-    y += TerminalFont::CHAR_HEIGHT + 2;
+  for (size_t i = this->scroll_offset_; i < lines.size() && y < 380; i++) {
+    this->draw_text(20, y, lines[i], this->font_color_);
+    y += 20; // Larger line spacing
   }
   
   // Cursor
   if (this->cursor_visible_) {
-    // Simplified cursor position
-    int cursor_line = this->editor_cursor_pos_ / 80; // Chars per line
-    int cursor_col = this->editor_cursor_pos_ % 80;
-    int cursor_x = 10 + (cursor_col * 8); // Approximate char width
-    int cursor_y = 90 + ((cursor_line - this->scroll_offset_) * (TerminalFont::CHAR_HEIGHT + 2));
+    // Simplified cursor position - adjusted for larger font
+    int cursor_line = this->editor_cursor_pos_ / 60; // Fewer chars per line due to larger font
+    int cursor_col = this->editor_cursor_pos_ % 60;
+    int cursor_x = 20 + (cursor_col * 12); // Approximate char width for 2x font
+    int cursor_y = 100 + ((cursor_line - this->scroll_offset_) * 20);
     
-    if (cursor_y >= 90 && cursor_y < 400) {
+    if (cursor_y >= 100 && cursor_y < 380) {
       this->draw_char(cursor_x, cursor_y, '_', this->font_color_);
     }
   }
   
   // Status line
-  this->draw_text(10, 450, "ESC to save and exit, CTRL+S to save", this->font_color_);
+  this->draw_text(20, 440, "ESC to save and exit, CTRL+S to save", this->font_color_);
 }
 
 void RobCoTerminal::render_action_screen() {
-  // Header
-  this->draw_text(10, 200, "EXECUTING ACTION...", this->font_color_);
-  this->draw_text(10, 240, "Please wait...", this->font_color_);
+  // Header with larger font and better positioning
+  this->draw_text(20, 200, "EXECUTING ACTION...", this->font_color_);
+  this->draw_text(20, 240, "Please wait...", this->font_color_);
 }
 
 void RobCoTerminal::draw_text(int x, int y, const std::string &text, uint32_t color) {
@@ -369,7 +405,9 @@ void RobCoTerminal::draw_text(int x, int y, const std::string &text, uint32_t co
   // Set cursor and color
   display->setCursor(x, y);
   display->setTextColor(rgb565_color);
-  display->setTextSize(1, 1); // Standard size
+  
+  // Use larger text size for authentic terminal feel (2x size)
+  display->setTextSize(2, 2); 
   
   // Print the text
   display->print(text.c_str());
@@ -392,7 +430,9 @@ void RobCoTerminal::draw_char(int x, int y, char c, uint32_t color) {
   // Set cursor and color
   display->setCursor(x, y);
   display->setTextColor(rgb565_color);
-  display->setTextSize(1, 1);
+  
+  // Use larger text size to match draw_text (2x size)
+  display->setTextSize(2, 2);
   
   // Print the character
   display->print(c);
@@ -451,6 +491,8 @@ void RobCoTerminal::navigate_up() {
       this->selected_index_ = menu->size() - 1;
     }
   } while (!this->should_show_item((*menu)[this->selected_index_]));
+  
+  this->content_changed_ = true;  // Mark for redraw
 }
 
 void RobCoTerminal::navigate_down() {
@@ -463,6 +505,8 @@ void RobCoTerminal::navigate_down() {
       this->selected_index_ = 0;
     }
   } while (!this->should_show_item((*menu)[this->selected_index_]));
+  
+  this->content_changed_ = true;  // Mark for redraw
 }
 
 void RobCoTerminal::navigate_enter() {
@@ -476,12 +520,14 @@ void RobCoTerminal::navigate_enter() {
       this->menu_stack_.push_back(this->selected_index_);
       this->selected_index_ = 0;
       this->current_state_ = TerminalState::SUBMENU;
+      this->content_changed_ = true;  // Mark for redraw
       break;
     case MenuItemType::ACTION:
       this->execute_action(item);
       break;
     case MenuItemType::TEXT_EDITOR:
       this->enter_text_editor(item);
+      this->content_changed_ = true;  // Mark for redraw
       break;
     case MenuItemType::STATUS:
       // Status items are read-only, do nothing
@@ -497,6 +543,7 @@ void RobCoTerminal::navigate_escape() {
     if (this->menu_stack_.empty()) {
       this->current_state_ = TerminalState::MAIN_MENU;
     }
+    this->content_changed_ = true;  // Mark for redraw
   }
 }
 
@@ -643,6 +690,36 @@ MenuItemType RobCoTerminal::string_to_menu_type(const std::string &type) {
   if (type == "status") return MenuItemType::STATUS;
   if (type == "text_editor") return MenuItemType::TEXT_EDITOR;
   return MenuItemType::ACTION; // default
+}
+
+void RobCoTerminal::render_scan_lines() {
+  if (!this->gfx_) return;
+  
+  // Cast back to Arduino_RGB_Display*
+  auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
+  
+  // Draw subtle scan lines for authentic CRT effect
+  // Use a very dark green for subtle scan lines
+  uint16_t scan_line_color = rgb888_to_rgb565(0x001100); // Very dark green
+  
+  // Draw horizontal scan lines every 3 pixels for subtle effect
+  for (int y = 0; y < 480; y += 3) {
+    display->drawFastHLine(0, y, 800, scan_line_color);
+  }
+  
+  // Add some subtle vertical interference lines occasionally
+  static uint32_t last_interference = 0;
+  uint32_t now = millis();
+  
+  // Add random vertical interference lines every few seconds for authentic feel
+  if ((now - last_interference) > 5000) { // Every 5 seconds
+    for (int i = 0; i < 3; i++) {
+      int x = random(800);
+      uint16_t interference_color = rgb888_to_rgb565(0x002200); // Slightly brighter dark green
+      display->drawFastVLine(x, 0, 480, interference_color);
+    }
+    last_interference = now;
+  }
 }
 
 }  // namespace robco_terminal

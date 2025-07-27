@@ -87,7 +87,7 @@ class RobCoTerminal : public Component {
   void publish_mqtt_message(const std::string &topic, const std::string &payload);
   
   // Display rendering - now renders directly to Arduino_GFX
-  void render_display();
+  void render_display(bool full_redraw = true);
 
  private:
   void initialize_display();
@@ -107,10 +107,14 @@ class RobCoTerminal : public Component {
   
   // Terminal state
   TerminalState current_state_;
+  TerminalState last_rendered_state_;
   std::vector<MenuItem> main_menu_;
   std::vector<MenuItem> *current_menu_;
   int selected_index_;
+  int last_rendered_selected_index_;
   std::vector<int> menu_stack_;  // For navigation back
+  bool content_changed_;  // Flag to indicate screen needs full redraw
+  bool cursor_state_changed_;  // Flag for cursor blink updates
   
   // Boot sequence
   bool boot_complete_;
@@ -160,6 +164,9 @@ class RobCoTerminal : public Component {
   void clear_screen();
   void scroll_up();
   void scroll_down();
+  
+  // Visual effects for authentic CRT terminal feel
+  void render_scan_lines();
   
   // Utility methods
   MenuItemType string_to_menu_type(const std::string &type);
