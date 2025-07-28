@@ -79,7 +79,7 @@ void RobCoTerminal::initialize_display() {
       GFX_NOT_DEFINED /* DC */, 39 /* CS */, 48 /* SCK */, 47 /* MOSI */, GFX_NOT_DEFINED /* MISO */
   );
 
-  // Define the RGB panel - exact from HelloWorld.ino  
+  // Define the RGB panel - optimized timing for stability
   auto *rgbpanel = new Arduino_ESP32RGBPanel(
       41 /* DE */, 40 /* VSYNC */, 39 /* HSYNC */, 42 /* PCLK */,
       14 /* R0 */, 21 /* R1 */, 47 /* R2 */, 48 /* R3 */, 45 /* R4 */,
@@ -87,37 +87,41 @@ void RobCoTerminal::initialize_display() {
       15 /* B0 */, 7 /* B1 */, 6 /* B2 */, 5 /* B3 */, 4 /* B4 */,
       0 /* hsync_polarity */, 210 /* hsync_front_porch */, 30 /* hsync_pulse_width */, 16 /* hsync_back_porch */,
       0 /* vsync_polarity */, 22 /* vsync_front_porch */, 13 /* vsync_pulse_width */, 10 /* vsync_back_porch */,
-      1 /* pclk_active_neg */, 16000000 /* prefer_speed */
+      1 /* pclk_active_neg */, 12000000 /* prefer_speed - reduced from 16MHz to 12MHz for stability */
   );
 
   // Store the bus and panel
   this->bus_ = bus;
   this->rgbpanel_ = rgbpanel;
 
-  // Define the display with the ST7701 driver - exact from HelloWorld.ino
+  // Define the display with the ST7701 driver - match Arduino version timing
   auto *display = new Arduino_RGB_Display(
-      800 /* width */, 480 /* height */, rgbpanel, 0 /* rotation */, true /* auto_flush */,
+      800 /* width */, 480 /* height */, rgbpanel, 0 /* rotation */, false /* auto_flush - manual control like Arduino */,
       bus, GFX_NOT_DEFINED /* RST */, st7701_type1_init_operations, sizeof(st7701_type1_init_operations)
   );
     
   // Store the display
   this->gfx_ = display;
 
-  // Begin the display - exact from HelloWorld.ino
+  // Begin the display with exact Arduino timing
   display->begin();
-  display->fillScreen(BLACK);  // BLACK background for terminal
+  delay(100); // Longer stabilization delay
+  display->fillScreen(BLACK);  
+  delay(50); // Let clear settle
   
   #ifdef TFT_BL
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH);
+    delay(20); 
   #endif
 
-  ESP_LOGCONFIG(TAG, "Arduino_GFX display initialized for RobCo Terminal!");
+  ESP_LOGCONFIG(TAG, "Arduino_GFX display initialized with optimized timing!");
 }
 
 void RobCoTerminal::loop() {
   static bool display_initialized = false;
   static uint32_t last_render = 0;
+  static bool first_render_done = false;
   uint32_t now = millis();
   
   // Initialize display in loop after all ESPHome components are ready
@@ -131,10 +135,20 @@ void RobCoTerminal::loop() {
     return; // Wait for display initialization
   }
   
-  // Handle cursor blinking - slower blink rate for authentic terminal feel
-  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) > 1000) { // 1 second blink rate
+  // Force initial render
+  if (!first_render_done && display_initialized) {
+    ESP_LOGI(TAG, "Forcing initial render");
+    this->render_display(true);
+    first_render_done = true;
+    last_render = now;
+    return;
+  }
+  
+  // Handle cursor blinking - much slower for better stability
+  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) > 1500) { // 1.5 second blink rate
     this->cursor_visible_ = !this->cursor_visible_;
     this->last_cursor_toggle_ = now;
+    // Only mark cursor state changed, don't force full redraw
     this->cursor_state_changed_ = true;
   }
   
@@ -154,29 +168,29 @@ void RobCoTerminal::loop() {
     this->last_rendered_selected_index_ = this->selected_index_;
   }
   
-  // Update menu visibility based on MQTT states
-  this->update_menu_visibility();
+  // Removed problematic update functions that cause excessive redraws
+  // this->update_menu_visibility();
+  // this->update_status_values();
   
-  // Update status values
-  this->update_status_values();
-  
-  // Render display only when content changes or for cursor updates
-  // But limit cursor updates to maximum 2 FPS (500ms minimum interval)
+  // Render display with improved logic to prevent flicker
+  // Only render when actually needed and limit frequency
   bool should_render = false;
   bool needs_full_redraw = false;
   
   if (this->content_changed_) {
-    // Content changes always render immediately for responsive navigation
+    // Content changes render immediately but only when necessary
     should_render = true;
     needs_full_redraw = true;
     this->content_changed_ = false;
-    this->render_display(needs_full_redraw);
-    last_render = now;
-  } else if (this->cursor_state_changed_ && this->cursor_blink_ && (now - last_render) > 500) {
-    // Cursor updates limited to 2 FPS max
+  } else if (this->cursor_state_changed_ && this->cursor_blink_ && (now - last_render) > 1000) {
+    // Cursor updates limited to 1 FPS and no full redraw
     should_render = true;
-    needs_full_redraw = false;  // Just cursor update
+    needs_full_redraw = false;
     this->cursor_state_changed_ = false;
+  }
+  
+  // Render if needed and not too frequently (min 50ms between renders)
+  if (should_render && (now - last_render >= 50)) {
     this->render_display(needs_full_redraw);
     last_render = now;
   }
@@ -238,16 +252,16 @@ void RobCoTerminal::init_boot_sequence() {
 void RobCoTerminal::update_boot_sequence() {
   uint32_t elapsed = millis() - this->boot_start_time_;
   
-  // Show one line every 200ms
-  if (elapsed > (this->boot_line_ * 200) && this->boot_line_ < this->boot_messages_.size()) {
+  // Show one line every 300ms (slower for better stability)
+  if (elapsed > (this->boot_line_ * 300) && this->boot_line_ < this->boot_messages_.size()) {
     ESP_LOGI(TAG, "Boot line %d: %s", this->boot_line_, 
              this->boot_line_ < this->boot_messages_.size() ? this->boot_messages_[this->boot_line_].c_str() : "");
     this->boot_line_++;
     this->content_changed_ = true;  // Mark for redraw
   }
   
-  // Boot complete after all messages shown + 2 seconds
-  if (elapsed > (this->boot_messages_.size() * 200 + 2000)) {
+  // Boot complete after all messages shown + 3 seconds (longer delay)
+  if (elapsed > (this->boot_messages_.size() * 300 + 3000)) {
     ESP_LOGI(TAG, "Boot sequence complete, switching to main menu");
     this->boot_complete_ = true;
     this->current_state_ = TerminalState::MAIN_MENU;
@@ -262,7 +276,7 @@ void RobCoTerminal::render_display(bool full_redraw) {
   // Cast back to Arduino_RGB_Display*
   auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
   
-  // Only clear screen when doing a full redraw (content changes)
+  // Only clear screen for major state changes, not for cursor updates
   if (full_redraw) {
     display->fillScreen(BLACK);
   }
@@ -285,10 +299,8 @@ void RobCoTerminal::render_display(bool full_redraw) {
       break;
   }
   
-  // Add scan lines for authentic CRT effect (only on full redraw to avoid flicker)
-  if (full_redraw) {
-    this->render_scan_lines();
-  }
+  // Always flush to ensure content appears on screen
+  display->flush();
 }
 
 void RobCoTerminal::render_boot_screen() {
@@ -698,22 +710,22 @@ void RobCoTerminal::render_scan_lines() {
   // Cast back to Arduino_RGB_Display*
   auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
   
-  // Draw subtle scan lines for authentic CRT effect
+  // Draw lighter scan lines for authentic CRT effect
   // Use a very dark green for subtle scan lines
   uint16_t scan_line_color = rgb888_to_rgb565(0x001100); // Very dark green
   
-  // Draw horizontal scan lines every 3 pixels for subtle effect
-  for (int y = 0; y < 480; y += 3) {
+  // Draw horizontal scan lines every 4 pixels for subtle effect (less intensive)
+  for (int y = 2; y < 480; y += 4) {
     display->drawFastHLine(0, y, 800, scan_line_color);
   }
   
-  // Add some subtle vertical interference lines occasionally
+  // Reduce interference lines frequency to prevent timing issues
   static uint32_t last_interference = 0;
   uint32_t now = millis();
   
-  // Add random vertical interference lines every few seconds for authentic feel
-  if ((now - last_interference) > 5000) { // Every 5 seconds
-    for (int i = 0; i < 3; i++) {
+  // Add random vertical interference lines less frequently for authentic feel
+  if ((now - last_interference) > 10000) { // Every 10 seconds instead of 5
+    for (int i = 0; i < 2; i++) { // Fewer lines
       int x = random(800);
       uint16_t interference_color = rgb888_to_rgb565(0x002200); // Slightly brighter dark green
       display->drawFastVLine(x, 0, 480, interference_color);
