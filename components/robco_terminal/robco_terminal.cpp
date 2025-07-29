@@ -138,7 +138,14 @@ void RobCoTerminal::loop() {
   // Force initial render
   if (!first_render_done && display_initialized) {
     ESP_LOGI(TAG, "Forcing initial render");
-    this->render_display(true);
+    // For boot sequence, just clear screen once and let individual lines be drawn
+    if (this->current_state_ == TerminalState::BOOTING) {
+      auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
+      display->fillScreen(BLACK);
+      display->flush();
+    } else {
+      this->render_display(true);
+    }
     first_render_done = true;
     last_render = now;
     return;
@@ -179,8 +186,11 @@ void RobCoTerminal::loop() {
   
   if (this->content_changed_) {
     // Content changes render immediately but only when necessary
-    should_render = true;
-    needs_full_redraw = true;
+    // Skip full redraws during boot sequence (lines are drawn individually)
+    if (this->current_state_ != TerminalState::BOOTING) {
+      should_render = true;
+      needs_full_redraw = true;
+    }
     this->content_changed_ = false;
   } else if (this->cursor_state_changed_ && this->cursor_blink_ && (now - last_render) > 1000) {
     // Cursor updates limited to 1 FPS and no full redraw
@@ -256,8 +266,13 @@ void RobCoTerminal::update_boot_sequence() {
   if (elapsed > (this->boot_line_ * 300) && this->boot_line_ < this->boot_messages_.size()) {
     ESP_LOGI(TAG, "Boot line %d: %s", this->boot_line_, 
              this->boot_line_ < this->boot_messages_.size() ? this->boot_messages_[this->boot_line_].c_str() : "");
+    
+    // Draw just the new line without clearing screen
+    this->draw_boot_line(this->boot_line_);
     this->boot_line_++;
-    this->content_changed_ = true;  // Mark for redraw
+    
+    // Don't mark content_changed to avoid full screen refresh
+    // this->content_changed_ = true;
   }
   
   // Boot complete after all messages shown + 3 seconds (longer delay)
@@ -266,7 +281,7 @@ void RobCoTerminal::update_boot_sequence() {
     this->boot_complete_ = true;
     this->current_state_ = TerminalState::MAIN_MENU;
     this->clear_screen();
-    this->content_changed_ = true;  // Mark for redraw
+    this->content_changed_ = true;  // Mark for redraw only when switching to menu
   }
 }
 
@@ -314,6 +329,22 @@ void RobCoTerminal::render_boot_screen() {
   if (this->boot_line_ >= this->boot_messages_.size() && this->cursor_visible_) {
     int cursor_x = 20 + (this->boot_messages_.back().length() * 12); // Approximate char width for 2x font
     this->draw_char(cursor_x, y - 20, '_', this->font_color_);
+  }
+}
+
+void RobCoTerminal::draw_boot_line(int line_index) {
+  if (line_index >= this->boot_messages_.size()) return;
+  
+  // Calculate Y position for this line
+  int y = 30 + (line_index * 20);
+  
+  // Draw just this line
+  this->draw_text(20, y, this->boot_messages_[line_index], this->font_color_);
+  
+  // Manually flush just this update to display
+  if (this->gfx_) {
+    auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
+    display->flush();
   }
 }
 

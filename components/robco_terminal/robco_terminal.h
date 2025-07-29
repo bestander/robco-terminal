@@ -140,6 +140,7 @@ class RobCoTerminal : public Component {
   // Private methods
   void init_boot_sequence();
   void update_boot_sequence();
+  void draw_boot_line(int line_index);
   void render_boot_screen();
   void render_main_menu();
   void render_submenu();
