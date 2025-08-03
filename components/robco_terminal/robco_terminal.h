@@ -83,8 +83,6 @@ class RobCoTerminal : public Component {
   void set_cursor_blink(bool enabled) { this->cursor_blink_ = enabled; }
   void set_font_color(uint32_t color) { this->font_color_ = color; }
   void set_background_color(uint32_t color) { this->background_color_ = color; }
-  void set_usb_dp_pin(GPIOPin *pin) { this->usb_dp_pin_ = pin; }
-  void set_usb_dm_pin(GPIOPin *pin) { this->usb_dm_pin_ = pin; }
   
   // Button configuration
   void set_down_button_pin(GPIOPin *pin) { this->down_button_pin_ = pin; }
@@ -116,12 +114,8 @@ class RobCoTerminal : public Component {
 
  private:
   void initialize_display();
-  void initialize_usb_keyboard();
   void initialize_buttons();
-  
-  // USB signal detection for ESP32-8048S070N/C
-  void check_usb_signals();
-  
+    
   // Button handling
   void check_buttons();
   void handle_button_press(int button_id);
@@ -137,10 +131,6 @@ class RobCoTerminal : public Component {
   uint32_t font_color_;
   uint32_t background_color_;
   
-  // USB keyboard pins (hardcoded for ESP32-8048S070N/C)
-  GPIOPin *usb_dp_pin_{nullptr};
-  GPIOPin *usb_dm_pin_{nullptr};
-  
   // Physical button pins
   GPIOPin *down_button_pin_{nullptr};
   GPIOPin *enter_button_pin_{nullptr};
@@ -151,11 +141,6 @@ class RobCoTerminal : public Component {
   bool enter_button_last_state_{true};  // Pull-up default  
   bool back_button_last_state_{true};   // Pull-up default
   uint32_t last_button_check_{0};
-  
-  // USB Host state (simplified for keyboard monitoring only)
-  bool usb_host_initialized_{false};
-  bool keyboard_connected_{false};
-  uint32_t last_usb_check_time_{0};
   
   // Arduino_GFX objects - use void pointers to avoid header conflicts
   void *bus_{nullptr};

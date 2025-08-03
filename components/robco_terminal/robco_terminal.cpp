@@ -81,9 +81,6 @@ void RobCoTerminal::setup() {
   // Register OTA callbacks for better stability
   ESP_LOGI(TAG, "Registering OTA event callbacks...");
   
-  // USB keyboard support initialized
-  ESP_LOGI(TAG, "📱 USB keyboard monitoring enabled");
-  
   // Initialize physical buttons
   this->initialize_buttons();
   
@@ -168,54 +165,6 @@ void RobCoTerminal::initialize_display() {
   #endif
 
   ESP_LOGCONFIG(TAG, "Arduino_GFX display initialized with optimized timing!");
-}
-
-void RobCoTerminal::initialize_usb_keyboard() {
-  ESP_LOGI(TAG, "Initializing USB keyboard support for ESP32-8048S070N/C...");
-  ESP_LOGI(TAG, "Board: ESP32-8048S070N/C with ESP32-S3");
-  ESP_LOGI(TAG, "USB OTG Pins - D+ (GPIO20), D- (GPIO19)");
-  
-  // For the ESP32-8048S070N/C board, USB pins are fixed at GPIO19/GPIO20
-  // Initialize GPIO pins for basic USB signal detection
-  gpio_config_t io_conf = {};
-  
-  // Configure GPIO20 (D+) as input with pullup
-  io_conf.intr_type = GPIO_INTR_DISABLE;
-  io_conf.mode = GPIO_MODE_INPUT;
-  io_conf.pin_bit_mask = (1ULL << 20);
-  io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-  io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-  gpio_config(&io_conf);
-  
-  // Configure GPIO19 (D-) as input with pullup
-  io_conf.pin_bit_mask = (1ULL << 19);
-  gpio_config(&io_conf);
-  
-  ESP_LOGI(TAG, "USB pins configured for signal detection");
-  ESP_LOGI(TAG, "Initial D+ (GPIO20) state: %s", gpio_get_level(GPIO_NUM_20) ? "HIGH" : "LOW");
-  ESP_LOGI(TAG, "Initial D- (GPIO19) state: %s", gpio_get_level(GPIO_NUM_19) ? "HIGH" : "LOW");
-  
-  // Check if ESP32-S3 USB Host is available
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-  ESP_LOGI(TAG, "ESP32-S3 detected - USB Host support available");
-  ESP_LOGW(TAG, "Currently using GPIO monitoring - upgrade to USB Host API for full functionality");
-#else
-  ESP_LOGW(TAG, "Non-S3 chip detected - limited USB support");
-#endif
-  
-  ESP_LOGW(TAG, "=== USB CONNECTION GUIDE ===");
-  ESP_LOGW(TAG, "1. Connect USB keyboard to 4-pin connector");
-  ESP_LOGW(TAG, "2. Ensure power (5V/GND) is connected - keyboard LEDs should light up");
-  ESP_LOGW(TAG, "3. D+ and D- data lines should be connected to GPIO20/GPIO19");
-  ESP_LOGW(TAG, "4. When keyboard connects, D+ should go LOW, D- stay HIGH");
-  ESP_LOGW(TAG, "===============================");
-  
-  // Initialize USB Host library (simplified approach)
-  this->usb_host_initialized_ = true;
-  this->keyboard_connected_ = false;
-  this->last_usb_check_time_ = 0;
-  
-  ESP_LOGI(TAG, "USB keyboard initialization complete - monitoring for device connection");
 }
 
 void RobCoTerminal::initialize_buttons() {
@@ -364,65 +313,6 @@ void RobCoTerminal::loop() {
   if (should_render && (now - last_render >= min_render_interval)) {
     this->render_display(needs_full_redraw);
     last_render = now;
-  }
-  
-  // USB Signal monitoring - reduced frequency to minimize interference with WiFi
-  static uint32_t last_usb_check = 0;
-  static bool last_dp_state = false;
-  static bool last_dm_state = false;
-  static bool first_usb_check = true;
-  
-  if (this->usb_host_initialized_ && (now - last_usb_check) > 2000) { // Increased to 2 seconds for WiFi coexistence
-    // Read USB pins directly (GPIO20 = D+, GPIO19 = D-)
-    bool dp_state = gpio_get_level(GPIO_NUM_20);
-    bool dm_state = gpio_get_level(GPIO_NUM_19);
-    
-    if (first_usb_check) {
-      last_dp_state = dp_state;
-      last_dm_state = dm_state;
-      first_usb_check = false;
-      ESP_LOGI(TAG, "USB monitoring started - D+ (GPIO20): %s, D- (GPIO19): %s", 
-               dp_state ? "HIGH" : "LOW", dm_state ? "HIGH" : "LOW");
-    }
-    
-    if (dp_state != last_dp_state || dm_state != last_dm_state) {
-      ESP_LOGI(TAG, "🔌 USB SIGNAL CHANGE! D+: %s→%s, D-: %s→%s", 
-               last_dp_state ? "H" : "L", dp_state ? "H" : "L",
-               last_dm_state ? "H" : "L", dm_state ? "H" : "L");
-      
-      // USB device detection logic for ESP32-8048S070N/C:
-      if (!dp_state && dm_state) {
-        ESP_LOGI(TAG, "✅ USB Full-speed device connected (KEYBOARD!)");
-        this->keyboard_connected_ = true;
-      } else if (dp_state && !dm_state) {
-        ESP_LOGI(TAG, "🖱️ USB Low-speed device connected (mouse)");
-        this->keyboard_connected_ = false;
-      } else if (dp_state && dm_state) {
-        ESP_LOGI(TAG, "❌ No USB device connected");
-        this->keyboard_connected_ = false;
-      } else {
-        ESP_LOGI(TAG, "⚠️ USB bus active (unknown state)");
-      }
-      
-      last_dp_state = dp_state;
-      last_dm_state = dm_state;
-    }
-    
-    // Status update every 10 seconds (reduced frequency for WiFi coexistence)
-    if ((now - this->last_usb_check_time_) > 10000) {
-      this->last_usb_check_time_ = now;
-      
-      if (this->keyboard_connected_) {
-        ESP_LOGI(TAG, "⌨️ USB Keyboard detected - waiting for key press data");
-      } else {
-        ESP_LOGI(TAG, "🔍 USB monitoring active - connect keyboard to see signal changes");
-      }
-    }
-    
-    last_usb_check = now;
-    
-    // Yield after USB operations to prevent WiFi interference
-    yield();
   }
   
   // Check physical buttons

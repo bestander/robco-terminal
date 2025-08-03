@@ -107,9 +107,6 @@ captive_portal:
 #   password: !secret mqtt_password
 #   topic_prefix: robco_terminal
 
-# Note: USB keyboard support is implemented directly in the robco_terminal component
-# The ESP32-S3 USB pins GPIO19 (D-) and GPIO20 (D+) are configured in the component
-
 # Custom external components - load from components directory
 external_components:
   - source:
