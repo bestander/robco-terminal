@@ -15,6 +15,9 @@ RobCoTerminal = robco_terminal_ns.class_("RobCoTerminal", cg.Component)
 CONF_KEYBOARD_ID = "keyboard_id"
 CONF_USB_DP_PIN = "usb_dp_pin"
 CONF_USB_DM_PIN = "usb_dm_pin"
+CONF_DOWN_BUTTON_PIN = "down_button_pin"
+CONF_ENTER_BUTTON_PIN = "enter_button_pin"
+CONF_BACK_BUTTON_PIN = "back_button_pin"
 CONF_MQTT_TOPIC_PREFIX = "mqtt_topic_prefix"
 CONF_BOOT_SEQUENCE = "boot_sequence"
 CONF_CURSOR_BLINK = "cursor_blink"
@@ -95,6 +98,9 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Optional(CONF_KEYBOARD_ID): cv.string,
     cv.Optional(CONF_USB_DP_PIN): pins.gpio_input_pin_schema,
     cv.Optional(CONF_USB_DM_PIN): pins.gpio_input_pin_schema,
+    cv.Optional(CONF_DOWN_BUTTON_PIN): pins.gpio_input_pin_schema,
+    cv.Optional(CONF_ENTER_BUTTON_PIN): pins.gpio_input_pin_schema,
+    cv.Optional(CONF_BACK_BUTTON_PIN): pins.gpio_input_pin_schema,
     cv.Optional(CONF_MQTT_TOPIC_PREFIX, default="robco_terminal"): cv.string,
     cv.Optional(CONF_BOOT_SEQUENCE, default=True): cv.boolean,
     cv.Optional(CONF_CURSOR_BLINK, default=True): cv.boolean,
@@ -117,6 +123,17 @@ async def to_code(config):
     if CONF_USB_DM_PIN in config:
         pin = await cg.gpio_pin_expression(config[CONF_USB_DM_PIN])
         cg.add(var.set_usb_dm_pin(pin))
+    
+    # Set button pins if configured
+    if CONF_DOWN_BUTTON_PIN in config:
+        pin = await cg.gpio_pin_expression(config[CONF_DOWN_BUTTON_PIN])
+        cg.add(var.set_down_button_pin(pin))
+    if CONF_ENTER_BUTTON_PIN in config:
+        pin = await cg.gpio_pin_expression(config[CONF_ENTER_BUTTON_PIN])
+        cg.add(var.set_enter_button_pin(pin))
+    if CONF_BACK_BUTTON_PIN in config:
+        pin = await cg.gpio_pin_expression(config[CONF_BACK_BUTTON_PIN])
+        cg.add(var.set_back_button_pin(pin))
     
     # Set configuration
     cg.add(var.set_mqtt_topic_prefix(config[CONF_MQTT_TOPIC_PREFIX]))

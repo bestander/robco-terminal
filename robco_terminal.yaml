@@ -149,6 +149,17 @@ robco_terminal:
   id: terminal
   mqtt_topic_prefix: "robco_terminal"
   
+  # Physical button configuration
+  down_button_pin: 
+    number: GPIO17
+    mode: INPUT_PULLUP
+  enter_button_pin: 
+    number: GPIO18
+    mode: INPUT_PULLUP
+  back_button_pin: 
+    number: GPIO19
+    mode: INPUT_PULLUP
+  
   # Terminal configuration (USB pins hardcoded in component for ESP32-8048S070N/C)
   boot_sequence: true
   cursor_blink: true

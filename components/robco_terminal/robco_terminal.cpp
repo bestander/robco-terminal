@@ -84,6 +84,9 @@ void RobCoTerminal::setup() {
   // USB keyboard support initialized
   ESP_LOGI(TAG, "📱 USB keyboard monitoring enabled");
   
+  // Initialize physical buttons
+  this->initialize_buttons();
+  
   this->current_state_ = TerminalState::BOOTING;
   this->last_rendered_state_ = TerminalState::BOOTING;
   this->boot_complete_ = false;
@@ -213,6 +216,31 @@ void RobCoTerminal::initialize_usb_keyboard() {
   this->last_usb_check_time_ = 0;
   
   ESP_LOGI(TAG, "USB keyboard initialization complete - monitoring for device connection");
+}
+
+void RobCoTerminal::initialize_buttons() {
+  ESP_LOGI(TAG, "Initializing physical buttons...");
+  
+  // Configure button pins with internal pull-ups
+  if (this->down_button_pin_ != nullptr) {
+    this->down_button_pin_->setup();
+    this->down_button_pin_->pin_mode(gpio::FLAG_INPUT | gpio::FLAG_PULLUP);
+    ESP_LOGI(TAG, "DOWN button configured");
+  }
+  
+  if (this->enter_button_pin_ != nullptr) {
+    this->enter_button_pin_->setup();
+    this->enter_button_pin_->pin_mode(gpio::FLAG_INPUT | gpio::FLAG_PULLUP);
+    ESP_LOGI(TAG, "ENTER button configured");
+  }
+  
+  if (this->back_button_pin_ != nullptr) {
+    this->back_button_pin_->setup();
+    this->back_button_pin_->pin_mode(gpio::FLAG_INPUT | gpio::FLAG_PULLUP);
+    ESP_LOGI(TAG, "BACK/ESC button configured");
+  }
+  
+  ESP_LOGI(TAG, "Physical buttons initialized");
 }
 
 void RobCoTerminal::loop() {
@@ -396,6 +424,9 @@ void RobCoTerminal::loop() {
     // Yield after USB operations to prevent WiFi interference
     yield();
   }
+  
+  // Check physical buttons
+  this->check_buttons();
 }
 
 void RobCoTerminal::dump_config() {
@@ -1089,6 +1120,64 @@ void RobCoTerminal::enable_after_ota() {
   this->content_changed_ = true;
   
   ESP_LOGI(TAG, "Component re-enabled, will redraw on next loop");
+}
+
+void RobCoTerminal::check_buttons() {
+  uint32_t now = millis();
+  
+  // Check buttons every 50ms to avoid bounce and excessive processing
+  if ((now - this->last_button_check_) < 50) {
+    return;
+  }
+  this->last_button_check_ = now;
+  
+  // Check DOWN button (GPIO 17)
+  if (this->down_button_pin_ != nullptr) {
+    bool current_state = this->down_button_pin_->digital_read();
+    if (!current_state && this->down_button_last_state_) { // Button pressed (HIGH to LOW)
+      ESP_LOGI(TAG, "DOWN button pressed");
+      this->handle_button_press(1); // Button ID 1 for DOWN
+    }
+    this->down_button_last_state_ = current_state;
+  }
+  
+  // Check ENTER button (GPIO 18)
+  if (this->enter_button_pin_ != nullptr) {
+    bool current_state = this->enter_button_pin_->digital_read();
+    if (!current_state && this->enter_button_last_state_) { // Button pressed (HIGH to LOW)
+      ESP_LOGI(TAG, "ENTER button pressed");
+      this->handle_button_press(2); // Button ID 2 for ENTER
+    }
+    this->enter_button_last_state_ = current_state;
+  }
+  
+  // Check BACK/ESC button (GPIO 19)
+  if (this->back_button_pin_ != nullptr) {
+    bool current_state = this->back_button_pin_->digital_read();
+    if (!current_state && this->back_button_last_state_) { // Button pressed (HIGH to LOW)
+      ESP_LOGI(TAG, "BACK/ESC button pressed");
+      this->handle_button_press(3); // Button ID 3 for BACK/ESC
+    }
+    this->back_button_last_state_ = current_state;
+  }
+}
+
+void RobCoTerminal::handle_button_press(int button_id) {
+  // Map button presses to keyboard equivalents
+  switch (button_id) {
+    case 1: // DOWN button
+      this->handle_key_press(0x51, 0); // DOWN ARROW key code
+      break;
+    case 2: // ENTER button
+      this->handle_key_press(0x28, 0); // ENTER key code
+      break;
+    case 3: // BACK/ESC button
+      this->handle_key_press(0x29, 0); // ESCAPE key code
+      break;
+    default:
+      ESP_LOGW(TAG, "Unknown button ID: %d", button_id);
+      break;
+  }
 }
 
 }  // namespace robco_terminal

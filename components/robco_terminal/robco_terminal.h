@@ -86,6 +86,11 @@ class RobCoTerminal : public Component {
   void set_usb_dp_pin(GPIOPin *pin) { this->usb_dp_pin_ = pin; }
   void set_usb_dm_pin(GPIOPin *pin) { this->usb_dm_pin_ = pin; }
   
+  // Button configuration
+  void set_down_button_pin(GPIOPin *pin) { this->down_button_pin_ = pin; }
+  void set_enter_button_pin(GPIOPin *pin) { this->enter_button_pin_ = pin; }
+  void set_back_button_pin(GPIOPin *pin) { this->back_button_pin_ = pin; }
+  
   // Menu management
   void add_menu_item(const std::string &title, const std::string &type,
                      const std::string &mqtt_topic, const std::string &mqtt_payload,
@@ -112,9 +117,14 @@ class RobCoTerminal : public Component {
  private:
   void initialize_display();
   void initialize_usb_keyboard();
+  void initialize_buttons();
   
   // USB signal detection for ESP32-8048S070N/C
   void check_usb_signals();
+  
+  // Button handling
+  void check_buttons();
+  void handle_button_press(int button_id);
   
   // OTA Safety state
   bool disabled_for_ota_{false};
@@ -130,6 +140,17 @@ class RobCoTerminal : public Component {
   // USB keyboard pins (hardcoded for ESP32-8048S070N/C)
   GPIOPin *usb_dp_pin_{nullptr};
   GPIOPin *usb_dm_pin_{nullptr};
+  
+  // Physical button pins
+  GPIOPin *down_button_pin_{nullptr};
+  GPIOPin *enter_button_pin_{nullptr};
+  GPIOPin *back_button_pin_{nullptr};
+  
+  // Button state tracking
+  bool down_button_last_state_{true};   // Pull-up default
+  bool enter_button_last_state_{true};  // Pull-up default  
+  bool back_button_last_state_{true};   // Pull-up default
+  uint32_t last_button_check_{0};
   
   // USB Host state (simplified for keyboard monitoring only)
   bool usb_host_initialized_{false};
