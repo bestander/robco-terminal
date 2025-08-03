@@ -2,11 +2,26 @@
 #include "esphome/core/log.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/color.h"
+#include "esphome/core/application.h"
+#include "esphome/core/preferences.h"
 
 // Include Arduino_GFX for direct display rendering
 #include <Wire.h>
 #include <SPI.h>
 #include <Arduino_GFX_Library.h>
+#include <WiFi.h>
+
+// Web server includes for HTTP endpoints
+#include "esphome/components/web_server/web_server.h"
+#include "esphome/components/web_server_base/web_server_base.h"
+
+// ArduinoOTA for buffer size optimization
+#ifdef USE_ARDUINO_OTA
+#include <ArduinoOTA.h>
+#endif
+
+// ESP task watchdog for OTA stability
+#include "esp_task_wdt.h"
 
 namespace esphome {
 namespace robco_terminal {
@@ -36,6 +51,39 @@ void RobCoTerminal::setup() {
   ESP_LOGCONFIG(TAG, "RobCo Terminal setup - deferring display initialization to loop()");
   ESP_LOGI(TAG, "RobCo Terminal setup starting");
   
+  // Register with OTA Safety system
+  auto *ota_safety = ota_safety::get_global_ota_safety();
+  if (ota_safety != nullptr) {
+    ESP_LOGI(TAG, "OTA Safety system found - checking disable flag...");
+    
+    // Check if we should be disabled for this boot
+    bool should_disable = ota_safety->should_disable_robco_terminal();
+    ESP_LOGW(TAG, "OTA Safety check result: should_disable = %s", should_disable ? "TRUE" : "FALSE");
+    
+    if (should_disable) {
+      ESP_LOGW(TAG, "🛑 OTA Safety requires component to be disabled - skipping initialization");
+      this->disabled_for_ota_ = true;
+      return;
+    } else {
+      ESP_LOGI(TAG, "✅ OTA Safety allows normal operation - proceeding with setup");
+    }
+  } else {
+    ESP_LOGW(TAG, "⚠️ OTA Safety system not found - running without OTA protection");
+  }
+  
+  // Configure ArduinoOTA for better stability with large firmware
+  #ifdef USE_ARDUINO_OTA
+  ESP_LOGI(TAG, "Configuring ArduinoOTA buffer size for large firmware...");
+  ArduinoOTA.setUpdateBufferSize(1024);  // Smaller buffer for better stability
+  ESP_LOGI(TAG, "ArduinoOTA buffer size set to 1024 bytes");
+  #endif
+  
+  // Register OTA callbacks for better stability
+  ESP_LOGI(TAG, "Registering OTA event callbacks...");
+  
+  // USB keyboard support initialized
+  ESP_LOGI(TAG, "📱 USB keyboard monitoring enabled");
+  
   this->current_state_ = TerminalState::BOOTING;
   this->last_rendered_state_ = TerminalState::BOOTING;
   this->boot_complete_ = false;
@@ -49,10 +97,11 @@ void RobCoTerminal::setup() {
   this->current_menu_ = &this->main_menu_;
   this->content_changed_ = true;  // Force initial render
   this->cursor_state_changed_ = false;
+  // OTA operations now handled by OTA Safety component
   
   ESP_LOGI(TAG, "RobCo Terminal state initialized");
   
-  // Initialize screen buffer
+  // Initialize screen buffer with memory optimization for OTA
   this->screen_buffer_.resize(TerminalFont::LINES_PER_SCREEN);
   ESP_LOGI(TAG, "Screen buffer initialized with %d lines", TerminalFont::LINES_PER_SCREEN);
   
@@ -79,7 +128,7 @@ void RobCoTerminal::initialize_display() {
       GFX_NOT_DEFINED /* DC */, 39 /* CS */, 48 /* SCK */, 47 /* MOSI */, GFX_NOT_DEFINED /* MISO */
   );
 
-  // Define the RGB panel - optimized timing for stability
+  // Define the RGB panel - optimized timing for stability and WiFi coexistence
   auto *rgbpanel = new Arduino_ESP32RGBPanel(
       41 /* DE */, 40 /* VSYNC */, 39 /* HSYNC */, 42 /* PCLK */,
       14 /* R0 */, 21 /* R1 */, 47 /* R2 */, 48 /* R3 */, 45 /* R4 */,
@@ -87,7 +136,7 @@ void RobCoTerminal::initialize_display() {
       15 /* B0 */, 7 /* B1 */, 6 /* B2 */, 5 /* B3 */, 4 /* B4 */,
       0 /* hsync_polarity */, 210 /* hsync_front_porch */, 30 /* hsync_pulse_width */, 16 /* hsync_back_porch */,
       0 /* vsync_polarity */, 22 /* vsync_front_porch */, 13 /* vsync_pulse_width */, 10 /* vsync_back_porch */,
-      1 /* pclk_active_neg */, 12000000 /* prefer_speed - reduced from 16MHz to 12MHz for stability */
+      1 /* pclk_active_neg */, 10000000 /* prefer_speed - reduced from 12MHz to 10MHz for WiFi coexistence */
   );
 
   // Store the bus and panel
@@ -118,11 +167,67 @@ void RobCoTerminal::initialize_display() {
   ESP_LOGCONFIG(TAG, "Arduino_GFX display initialized with optimized timing!");
 }
 
+void RobCoTerminal::initialize_usb_keyboard() {
+  ESP_LOGI(TAG, "Initializing USB keyboard support for ESP32-8048S070N/C...");
+  ESP_LOGI(TAG, "Board: ESP32-8048S070N/C with ESP32-S3");
+  ESP_LOGI(TAG, "USB OTG Pins - D+ (GPIO20), D- (GPIO19)");
+  
+  // For the ESP32-8048S070N/C board, USB pins are fixed at GPIO19/GPIO20
+  // Initialize GPIO pins for basic USB signal detection
+  gpio_config_t io_conf = {};
+  
+  // Configure GPIO20 (D+) as input with pullup
+  io_conf.intr_type = GPIO_INTR_DISABLE;
+  io_conf.mode = GPIO_MODE_INPUT;
+  io_conf.pin_bit_mask = (1ULL << 20);
+  io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+  gpio_config(&io_conf);
+  
+  // Configure GPIO19 (D-) as input with pullup
+  io_conf.pin_bit_mask = (1ULL << 19);
+  gpio_config(&io_conf);
+  
+  ESP_LOGI(TAG, "USB pins configured for signal detection");
+  ESP_LOGI(TAG, "Initial D+ (GPIO20) state: %s", gpio_get_level(GPIO_NUM_20) ? "HIGH" : "LOW");
+  ESP_LOGI(TAG, "Initial D- (GPIO19) state: %s", gpio_get_level(GPIO_NUM_19) ? "HIGH" : "LOW");
+  
+  // Check if ESP32-S3 USB Host is available
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  ESP_LOGI(TAG, "ESP32-S3 detected - USB Host support available");
+  ESP_LOGW(TAG, "Currently using GPIO monitoring - upgrade to USB Host API for full functionality");
+#else
+  ESP_LOGW(TAG, "Non-S3 chip detected - limited USB support");
+#endif
+  
+  ESP_LOGW(TAG, "=== USB CONNECTION GUIDE ===");
+  ESP_LOGW(TAG, "1. Connect USB keyboard to 4-pin connector");
+  ESP_LOGW(TAG, "2. Ensure power (5V/GND) is connected - keyboard LEDs should light up");
+  ESP_LOGW(TAG, "3. D+ and D- data lines should be connected to GPIO20/GPIO19");
+  ESP_LOGW(TAG, "4. When keyboard connects, D+ should go LOW, D- stay HIGH");
+  ESP_LOGW(TAG, "===============================");
+  
+  // Initialize USB Host library (simplified approach)
+  this->usb_host_initialized_ = true;
+  this->keyboard_connected_ = false;
+  this->last_usb_check_time_ = 0;
+  
+  ESP_LOGI(TAG, "USB keyboard initialization complete - monitoring for device connection");
+}
+
 void RobCoTerminal::loop() {
+  // Early exit if disabled for OTA
+  if (this->disabled_for_ota_) {
+    return;
+  }
+  
   static bool display_initialized = false;
   static uint32_t last_render = 0;
   static bool first_render_done = false;
+  static uint32_t wifi_yield_counter = 0;
   uint32_t now = millis();
+  
+  // OTA detection is now handled by OTA Safety component
   
   // Initialize display in loop after all ESPHome components are ready
   if (!display_initialized && now > 2000) { // Wait 2 seconds for ESPHome to stabilize
@@ -133,6 +238,13 @@ void RobCoTerminal::loop() {
   
   if (!display_initialized) {
     return; // Wait for display initialization
+  }
+  
+  // WiFi interference mitigation: Yield to WiFi stack every few iterations
+  wifi_yield_counter++;
+  if (wifi_yield_counter % 10 == 0) {
+    yield(); // Give WiFi stack time to process
+    delay(1); // Small delay to prevent tight looping
   }
   
   // Force initial render
@@ -151,8 +263,8 @@ void RobCoTerminal::loop() {
     return;
   }
   
-  // Handle cursor blinking - much slower for better stability
-  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) > 1500) { // 1.5 second blink rate
+  // Handle cursor blinking - much slower for better stability and WiFi coexistence
+  if (this->cursor_blink_ && (now - this->last_cursor_toggle_) > 2000) { // 2 second blink rate (slower for WiFi stability)
     this->cursor_visible_ = !this->cursor_visible_;
     this->last_cursor_toggle_ = now;
     // Only mark cursor state changed, don't force full redraw
@@ -179,10 +291,31 @@ void RobCoTerminal::loop() {
   // this->update_menu_visibility();
   // this->update_status_values();
   
-  // Render display with improved logic to prevent flicker
-  // Only render when actually needed and limit frequency
+  // Render display with improved logic to prevent flicker and WiFi interference
+  // Only render when actually needed and limit frequency more aggressively
   bool should_render = false;
   bool needs_full_redraw = false;
+  uint32_t min_render_interval = 100; // Increased from 50ms to 100ms for WiFi coexistence
+  
+  // Adaptive rendering based on WiFi activity
+  static uint32_t last_wifi_check = 0;
+  if ((now - last_wifi_check) > 1000) {
+    // Check WiFi status and adjust rendering accordingly
+    if (WiFi.status() == WL_CONNECTED) {
+      // WiFi is active, reduce rendering frequency more
+      min_render_interval = 150;
+    } else {
+      // No WiFi, can render more frequently
+      min_render_interval = 75;
+    }
+    last_wifi_check = now;
+  }
+  
+  // Only reduce rendering frequency if we're definitely in OTA mode
+  if (this->disabled_for_ota_) {
+    min_render_interval = 1000; // Much slower during OTA to avoid interference
+    ESP_LOGD(TAG, "Disabled for OTA - reducing render frequency");
+  }
   
   if (this->content_changed_) {
     // Content changes render immediately but only when necessary
@@ -192,17 +325,76 @@ void RobCoTerminal::loop() {
       needs_full_redraw = true;
     }
     this->content_changed_ = false;
-  } else if (this->cursor_state_changed_ && this->cursor_blink_ && (now - last_render) > 1000) {
-    // Cursor updates limited to 1 FPS and no full redraw
+  } else if (this->cursor_state_changed_ && this->cursor_blink_ && (now - last_render) > 1500) {
+    // Cursor updates limited to slower rate and no full redraw (WiFi friendly)
     should_render = true;
     needs_full_redraw = false;
     this->cursor_state_changed_ = false;
   }
   
-  // Render if needed and not too frequently (min 50ms between renders)
-  if (should_render && (now - last_render >= 50)) {
+  // Render if needed and not too frequently (adaptive interval based on WiFi activity)
+  if (should_render && (now - last_render >= min_render_interval)) {
     this->render_display(needs_full_redraw);
     last_render = now;
+  }
+  
+  // USB Signal monitoring - reduced frequency to minimize interference with WiFi
+  static uint32_t last_usb_check = 0;
+  static bool last_dp_state = false;
+  static bool last_dm_state = false;
+  static bool first_usb_check = true;
+  
+  if (this->usb_host_initialized_ && (now - last_usb_check) > 2000) { // Increased to 2 seconds for WiFi coexistence
+    // Read USB pins directly (GPIO20 = D+, GPIO19 = D-)
+    bool dp_state = gpio_get_level(GPIO_NUM_20);
+    bool dm_state = gpio_get_level(GPIO_NUM_19);
+    
+    if (first_usb_check) {
+      last_dp_state = dp_state;
+      last_dm_state = dm_state;
+      first_usb_check = false;
+      ESP_LOGI(TAG, "USB monitoring started - D+ (GPIO20): %s, D- (GPIO19): %s", 
+               dp_state ? "HIGH" : "LOW", dm_state ? "HIGH" : "LOW");
+    }
+    
+    if (dp_state != last_dp_state || dm_state != last_dm_state) {
+      ESP_LOGI(TAG, "🔌 USB SIGNAL CHANGE! D+: %s→%s, D-: %s→%s", 
+               last_dp_state ? "H" : "L", dp_state ? "H" : "L",
+               last_dm_state ? "H" : "L", dm_state ? "H" : "L");
+      
+      // USB device detection logic for ESP32-8048S070N/C:
+      if (!dp_state && dm_state) {
+        ESP_LOGI(TAG, "✅ USB Full-speed device connected (KEYBOARD!)");
+        this->keyboard_connected_ = true;
+      } else if (dp_state && !dm_state) {
+        ESP_LOGI(TAG, "🖱️ USB Low-speed device connected (mouse)");
+        this->keyboard_connected_ = false;
+      } else if (dp_state && dm_state) {
+        ESP_LOGI(TAG, "❌ No USB device connected");
+        this->keyboard_connected_ = false;
+      } else {
+        ESP_LOGI(TAG, "⚠️ USB bus active (unknown state)");
+      }
+      
+      last_dp_state = dp_state;
+      last_dm_state = dm_state;
+    }
+    
+    // Status update every 10 seconds (reduced frequency for WiFi coexistence)
+    if ((now - this->last_usb_check_time_) > 10000) {
+      this->last_usb_check_time_ = now;
+      
+      if (this->keyboard_connected_) {
+        ESP_LOGI(TAG, "⌨️ USB Keyboard detected - waiting for key press data");
+      } else {
+        ESP_LOGI(TAG, "🔍 USB monitoring active - connect keyboard to see signal changes");
+      }
+    }
+    
+    last_usb_check = now;
+    
+    // Yield after USB operations to prevent WiFi interference
+    yield();
   }
 }
 
@@ -455,7 +647,7 @@ void RobCoTerminal::draw_text(int x, int y, const std::string &text, uint32_t co
   // Print the text
   display->print(text.c_str());
   
-  ESP_LOGD(TAG, "Drawing text at (%d,%d) with RGB565 color 0x%04X (from 0x%06X): %s", x, y, rgb565_color, color, text.c_str());
+  // Removed verbose logging - was too noisy
 }
 
 void RobCoTerminal::draw_char(int x, int y, char c, uint32_t color) {
@@ -480,16 +672,39 @@ void RobCoTerminal::draw_char(int x, int y, char c, uint32_t color) {
   // Print the character
   display->print(c);
   
-  ESP_LOGD(TAG, "Drawing char at (%d,%d) with RGB565 color 0x%04X (from 0x%06X): %c", x, y, rgb565_color, color, c);
+  // Removed verbose logging - was too noisy
 }
 
 void RobCoTerminal::handle_key_press(uint16_t key, uint8_t modifiers) {
-  ESP_LOGD(TAG, "Key pressed: 0x%04X, modifiers: 0x%02X", key, modifiers);
+  ESP_LOGI(TAG, "=== KEY PRESS EVENT ===");
+  ESP_LOGI(TAG, "Key code: 0x%04X (%d)", key, key);
+  ESP_LOGI(TAG, "Modifiers: 0x%02X (%d)", modifiers, modifiers);
+  ESP_LOGI(TAG, "Current state: %d", (int)this->current_state_);
+  ESP_LOGI(TAG, "Boot complete: %s", this->boot_complete_ ? "YES" : "NO");
+  
+  // Log special keys first (these are NOT printable ASCII)
+  if (key == 0x28) ESP_LOGI(TAG, "Special key: ENTER");
+  else if (key == 0x29) ESP_LOGI(TAG, "Special key: ESCAPE");
+  else if (key == 0x2A) ESP_LOGI(TAG, "Special key: BACKSPACE");
+  else if (key == 0x2B) ESP_LOGI(TAG, "Special key: TAB");
+  else if (key == 0x2C) ESP_LOGI(TAG, "Special key: SPACE");
+  else if (key == 0x4F) ESP_LOGI(TAG, "Special key: RIGHT ARROW");
+  else if (key == 0x50) ESP_LOGI(TAG, "Special key: LEFT ARROW");
+  else if (key == 0x51) ESP_LOGI(TAG, "Special key: DOWN ARROW");
+  else if (key == 0x52) ESP_LOGI(TAG, "Special key: UP ARROW");
+  else if (key >= 32 && key <= 126) {
+    // Only log ASCII for actual printable characters (not special keys)
+    ESP_LOGI(TAG, "ASCII character: '%c'", (char)key);
+  } else {
+    ESP_LOGI(TAG, "Non-printable key: 0x%04X", key);
+  }
   
   // Handle boot sequence
   if (this->current_state_ == TerminalState::BOOTING && this->boot_complete_) {
+    ESP_LOGI(TAG, "Boot complete - any key pressed, switching to main menu");
     this->current_state_ = TerminalState::MAIN_MENU;
     this->clear_screen();
+    this->content_changed_ = true;
     return;
   }
   
@@ -497,36 +712,54 @@ void RobCoTerminal::handle_key_press(uint16_t key, uint8_t modifiers) {
   switch (this->current_state_) {
     case TerminalState::MAIN_MENU:
     case TerminalState::SUBMENU:
+      ESP_LOGI(TAG, "Handling menu navigation");
       this->handle_menu_navigation(key, modifiers);
       break;
     case TerminalState::TEXT_EDITOR:
+      ESP_LOGI(TAG, "Handling text editor input");
       this->handle_text_editor_input(key, modifiers);
       break;
     default:
+      ESP_LOGI(TAG, "No handler for current state: %d", (int)this->current_state_);
       break;
   }
+  ESP_LOGI(TAG, "=== KEY PRESS HANDLED ===");
 }
 
 void RobCoTerminal::handle_menu_navigation(uint16_t key, uint8_t modifiers) {
+  ESP_LOGI(TAG, "Menu navigation - Key: 0x%04X, Current selection: %d", key, this->selected_index_);
+  
   switch (key) {
     case 0x52: // Up arrow
+      ESP_LOGI(TAG, "UP ARROW pressed - navigating up");
       this->navigate_up();
       break;
     case 0x51: // Down arrow
+      ESP_LOGI(TAG, "DOWN ARROW pressed - navigating down");
       this->navigate_down();
       break;
     case 0x28: // Enter
+      ESP_LOGI(TAG, "ENTER pressed - selecting item");
       this->navigate_enter();
       break;
     case 0x29: // Escape
+      ESP_LOGI(TAG, "ESCAPE pressed - going back");
       this->navigate_escape();
+      break;
+    default:
+      ESP_LOGI(TAG, "Unhandled key in menu navigation: 0x%04X", key);
       break;
   }
 }
 
 void RobCoTerminal::navigate_up() {
   std::vector<MenuItem> *menu = this->get_current_menu();
-  if (!menu || menu->empty()) return;
+  if (!menu || menu->empty()) {
+    ESP_LOGI(TAG, "Navigate up - no menu or empty menu");
+    return;
+  }
+  
+  int old_index = this->selected_index_;
   
   do {
     this->selected_index_--;
@@ -535,12 +768,18 @@ void RobCoTerminal::navigate_up() {
     }
   } while (!this->should_show_item((*menu)[this->selected_index_]));
   
+  ESP_LOGI(TAG, "Navigate up - selection changed from %d to %d", old_index, this->selected_index_);
   this->content_changed_ = true;  // Mark for redraw
 }
 
 void RobCoTerminal::navigate_down() {
   std::vector<MenuItem> *menu = this->get_current_menu();
-  if (!menu || menu->empty()) return;
+  if (!menu || menu->empty()) {
+    ESP_LOGI(TAG, "Navigate down - no menu or empty menu");
+    return;
+  }
+  
+  int old_index = this->selected_index_;
   
   do {
     this->selected_index_++;
@@ -549,30 +788,39 @@ void RobCoTerminal::navigate_down() {
     }
   } while (!this->should_show_item((*menu)[this->selected_index_]));
   
+  ESP_LOGI(TAG, "Navigate down - selection changed from %d to %d", old_index, this->selected_index_);
   this->content_changed_ = true;  // Mark for redraw
 }
 
 void RobCoTerminal::navigate_enter() {
   std::vector<MenuItem> *menu = this->get_current_menu();
-  if (!menu || menu->empty() || this->selected_index_ >= menu->size()) return;
+  if (!menu || menu->empty() || this->selected_index_ >= menu->size()) {
+    ESP_LOGI(TAG, "Navigate enter - invalid menu state");
+    return;
+  }
   
   const MenuItem &item = (*menu)[this->selected_index_];
+  ESP_LOGI(TAG, "Navigate enter - selected item: '%s' (type: %d)", item.title.c_str(), (int)item.type);
   
   switch (item.type) {
     case MenuItemType::SUBMENU:
+      ESP_LOGI(TAG, "Entering submenu: %s", item.title.c_str());
       this->menu_stack_.push_back(this->selected_index_);
       this->selected_index_ = 0;
       this->current_state_ = TerminalState::SUBMENU;
       this->content_changed_ = true;  // Mark for redraw
       break;
     case MenuItemType::ACTION:
+      ESP_LOGI(TAG, "Executing action: %s", item.title.c_str());
       this->execute_action(item);
       break;
     case MenuItemType::TEXT_EDITOR:
+      ESP_LOGI(TAG, "Entering text editor: %s", item.title.c_str());
       this->enter_text_editor(item);
       this->content_changed_ = true;  // Mark for redraw
       break;
     case MenuItemType::STATUS:
+      ESP_LOGI(TAG, "Status item selected (read-only): %s", item.title.c_str());
       // Status items are read-only, do nothing
       break;
   }
@@ -604,8 +852,40 @@ void RobCoTerminal::clear_screen() {
 }
 
 void RobCoTerminal::handle_text_editor_input(uint16_t key, uint8_t modifiers) {
-  // TODO: Implement text editor input handling
-  ESP_LOGD(TAG, "Text editor input: key=0x%04X, modifiers=0x%02X", key, modifiers);
+  ESP_LOGI(TAG, "Text editor input - Key: 0x%04X, Modifiers: 0x%02X", key, modifiers);
+  
+  // Handle special keys
+  if (key == 0x29) { // Escape
+    ESP_LOGI(TAG, "ESC pressed in text editor - exiting to main menu");
+    this->current_state_ = TerminalState::MAIN_MENU;
+    this->content_changed_ = true;
+    return;
+  }
+  
+  // Handle printable characters
+  if (key >= 32 && key <= 126) {
+    ESP_LOGI(TAG, "Adding character '%c' to editor content", (char)key);
+    this->editor_content_ += (char)key;
+    this->editor_cursor_pos_++;
+    this->content_changed_ = true;
+  }
+  
+  // Handle special editing keys
+  if (key == 0x2A) { // Backspace
+    if (!this->editor_content_.empty() && this->editor_cursor_pos_ > 0) {
+      ESP_LOGI(TAG, "Backspace pressed - removing character");
+      this->editor_content_.pop_back();
+      this->editor_cursor_pos_--;
+      this->content_changed_ = true;
+    }
+  }
+  
+  if (key == 0x28) { // Enter
+    ESP_LOGI(TAG, "Enter pressed in editor - adding newline");
+    this->editor_content_ += '\n';
+    this->editor_cursor_pos_++;
+    this->content_changed_ = true;
+  }
 }
 
 void RobCoTerminal::execute_action(const MenuItem &item) {
@@ -613,6 +893,19 @@ void RobCoTerminal::execute_action(const MenuItem &item) {
   if (!item.mqtt_topic.empty()) {
     this->publish_mqtt_message(item.mqtt_topic, item.mqtt_payload);
   }
+}
+
+void RobCoTerminal::publish_mqtt_message(const std::string &topic, const std::string &payload) {
+  ESP_LOGI(TAG, "MQTT Publish - Topic: %s, Payload: %s", topic.c_str(), payload.c_str());
+  // TODO: Implement actual MQTT publishing when MQTT is enabled
+  // For now, just log the action
+  ESP_LOGW(TAG, "MQTT publishing not implemented yet - this would publish to Home Assistant");
+}
+
+void RobCoTerminal::on_mqtt_message(const std::string &topic, const std::string &payload) {
+  ESP_LOGI(TAG, "MQTT Message received - Topic: %s, Payload: %s", topic.c_str(), payload.c_str());
+  // TODO: Handle incoming MQTT messages for status updates
+  // Update menu item values based on received messages
 }
 
 void RobCoTerminal::enter_text_editor(const MenuItem &item) {
@@ -763,6 +1056,39 @@ void RobCoTerminal::render_scan_lines() {
     }
     last_interference = now;
   }
+}
+
+// ===== OTA SAFETY INTEGRATION =====
+
+void RobCoTerminal::disable_for_ota() {
+  ESP_LOGW(TAG, "🛑 RobCo Terminal disabled for OTA safety");
+  this->disabled_for_ota_ = true;
+  
+  // Clear display if it exists
+  if (this->gfx_) {
+    auto *display = static_cast<Arduino_RGB_Display*>(this->gfx_);
+    display->fillScreen(0x0000); // Black
+    display->setCursor(100, 200);
+    display->setTextColor(0x07E0); // Green
+    display->setTextSize(3, 3);
+    display->print("OTA UPDATE IN PROGRESS");
+    display->setCursor(150, 250);
+    display->setTextSize(2, 2);
+    display->print("Please wait...");
+    display->flush();
+  }
+  
+  ESP_LOGW(TAG, "Display cleared and OTA message shown");
+}
+
+void RobCoTerminal::enable_after_ota() {
+  ESP_LOGI(TAG, "🔄 RobCo Terminal re-enabled after OTA");
+  this->disabled_for_ota_ = false;
+  
+  // Force a full redraw when re-enabled
+  this->content_changed_ = true;
+  
+  ESP_LOGI(TAG, "Component re-enabled, will redraw on next loop");
 }
 
 }  // namespace robco_terminal

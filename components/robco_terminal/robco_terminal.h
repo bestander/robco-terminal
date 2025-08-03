@@ -2,9 +2,19 @@
 
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
+#include "esphome/core/gpio.h"
+#include "esphome/core/preferences.h"
+#include "esphome/components/web_server_base/web_server_base.h"
 // Removed display_buffer.h since we use Arduino_GFX directly
 // #include "esphome/components/display/display_buffer.h"
 // #include "esphome/components/mqtt/mqtt_client.h"  // Temporarily removed for debugging
+
+// OTA Safety integration
+#include "esphome/components/ota_safety/ota_safety.h"
+
+// Direct GPIO access for USB signal detection on ESP32-8048S070N/C
+#include "driver/gpio.h"
+
 #include <vector>
 #include <string>
 #include <map>
@@ -13,6 +23,9 @@ namespace esphome {
 namespace robco_terminal {
 
 static const char *const TAG = "robco_terminal";
+
+// Forward declaration for Arduino_GFX components
+class RobCoTerminal;
 
 enum class MenuItemType {
   SUBMENU,
@@ -59,12 +72,19 @@ class RobCoTerminal : public Component {
   void loop() override;
   void dump_config() override;
   
+  // OTA Safety integration
+  void disable_for_ota();
+  void enable_after_ota();
+  bool is_enabled_for_ota() const { return !disabled_for_ota_; }
+  
   // Configuration setters - removed set_display since we use integrated Arduino_GFX
   void set_mqtt_topic_prefix(const std::string &prefix) { this->mqtt_topic_prefix_ = prefix; }
   void set_boot_sequence(bool enabled) { this->boot_sequence_ = enabled; }
   void set_cursor_blink(bool enabled) { this->cursor_blink_ = enabled; }
   void set_font_color(uint32_t color) { this->font_color_ = color; }
   void set_background_color(uint32_t color) { this->background_color_ = color; }
+  void set_usb_dp_pin(GPIOPin *pin) { this->usb_dp_pin_ = pin; }
+  void set_usb_dm_pin(GPIOPin *pin) { this->usb_dm_pin_ = pin; }
   
   // Menu management
   void add_menu_item(const std::string &title, const std::string &type,
@@ -91,6 +111,13 @@ class RobCoTerminal : public Component {
 
  private:
   void initialize_display();
+  void initialize_usb_keyboard();
+  
+  // USB signal detection for ESP32-8048S070N/C
+  void check_usb_signals();
+  
+  // OTA Safety state
+  bool disabled_for_ota_{false};
 
  protected:
   // Removed display_ since we use integrated Arduino_GFX
@@ -99,6 +126,15 @@ class RobCoTerminal : public Component {
   bool cursor_blink_;
   uint32_t font_color_;
   uint32_t background_color_;
+  
+  // USB keyboard pins (hardcoded for ESP32-8048S070N/C)
+  GPIOPin *usb_dp_pin_{nullptr};
+  GPIOPin *usb_dm_pin_{nullptr};
+  
+  // USB Host state (simplified for keyboard monitoring only)
+  bool usb_host_initialized_{false};
+  bool keyboard_connected_{false};
+  uint32_t last_usb_check_time_{0};
   
   // Arduino_GFX objects - use void pointers to avoid header conflicts
   void *bus_{nullptr};
@@ -115,6 +151,7 @@ class RobCoTerminal : public Component {
   std::vector<int> menu_stack_;  // For navigation back
   bool content_changed_;  // Flag to indicate screen needs full redraw
   bool cursor_state_changed_;  // Flag for cursor blink updates
+  // OTA operations now handled by OTA Safety component
   
   // Boot sequence
   bool boot_complete_;
