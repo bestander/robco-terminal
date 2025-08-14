@@ -175,10 +175,10 @@ robco_terminal:
           condition_topic: "vault/door/status"
           condition_value: "OPEN"
           
-    - title: "SECURITY SYSTEM12"
+    - title: "SECURITY SYSTEM"
       type: submenu
       items:
-        - title: "System Status1"
+        - title: "System Status"
           type: status
           mqtt_topic: "security/status"
           readonly: true
