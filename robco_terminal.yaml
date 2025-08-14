@@ -33,12 +33,13 @@ esp32:
 
 # Enable logging (over WiFi when connected, USB when not) - reduced for OTA
 logger:
-  level: INFO  # Reduced from DEBUG to save space
+  level: DEBUG  # Reduced from DEBUG to save space
   baud_rate: 115200
   hardware_uart: UART0
   logs:
     component: INFO
     robco_terminal: INFO  # Reduced from DEBUG
+    uart_logger: DEBUG
     wifi: INFO
     api: INFO
     ota: INFO
@@ -125,7 +126,7 @@ spi:
   mosi_pin: GPIO11  # Free pin, not used by RGB display
   # This is only for SPI.h compilation, Arduino_GFX uses its own SWSPI
 
-# I2C for Wire.h dependency (even if not used directly)
+# I2C buses - to initialize Wire.h
 i2c:
   sda: GPIO8
   scl: GPIO9
@@ -141,21 +142,15 @@ ota_safety:
   id: ota_safety_component
   enable_http_endpoints: true  # Enable HTTP API for OTA mode
 
+
+# I2C Slave Logger - listens for messages from Pico master
+uart_logger:
+
+
 # RobCo Terminal with integrated Arduino_GFX display and USB keyboard
 robco_terminal:
   id: terminal
   mqtt_topic_prefix: "robco_terminal"
-  
-  # Physical button configuration
-  down_button_pin: 
-    number: GPIO17
-    mode: INPUT_PULLUP
-  enter_button_pin: 
-    number: GPIO18
-    mode: INPUT_PULLUP
-  back_button_pin: 
-    number: GPIO19
-    mode: INPUT_PULLUP
   
   # Terminal configuration (USB pins hardcoded in component for ESP32-8048S070N/C)
   boot_sequence: true
