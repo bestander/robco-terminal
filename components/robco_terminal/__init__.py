@@ -3,7 +3,6 @@ import esphome.config_validation as cv
 # from esphome.components import display  # Removed since we use integrated Arduino_GFX
 # from esphome.components import mqtt  # Temporarily removed for debugging
 from esphome.const import CONF_ID, CONF_LAMBDA
-from esphome import pins
 
 DEPENDENCIES = []
 # DEPENDENCIES = ["display", "mqtt"]  # Temporarily removed for debugging
@@ -13,9 +12,6 @@ robco_terminal_ns = cg.esphome_ns.namespace("robco_terminal")
 RobCoTerminal = robco_terminal_ns.class_("RobCoTerminal", cg.Component)
 
 CONF_KEYBOARD_ID = "keyboard_id"
-CONF_DOWN_BUTTON_PIN = "down_button_pin"
-CONF_ENTER_BUTTON_PIN = "enter_button_pin"
-CONF_BACK_BUTTON_PIN = "back_button_pin"
 CONF_MQTT_TOPIC_PREFIX = "mqtt_topic_prefix"
 CONF_BOOT_SEQUENCE = "boot_sequence"
 CONF_CURSOR_BLINK = "cursor_blink"
@@ -94,9 +90,6 @@ MENU_ITEM_SCHEMA = cv.All(
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(RobCoTerminal),
     cv.Optional(CONF_KEYBOARD_ID): cv.string,
-    cv.Optional(CONF_DOWN_BUTTON_PIN): pins.gpio_input_pin_schema,
-    cv.Optional(CONF_ENTER_BUTTON_PIN): pins.gpio_input_pin_schema,
-    cv.Optional(CONF_BACK_BUTTON_PIN): pins.gpio_input_pin_schema,
     cv.Optional(CONF_MQTT_TOPIC_PREFIX, default="robco_terminal"): cv.string,
     cv.Optional(CONF_BOOT_SEQUENCE, default=True): cv.boolean,
     cv.Optional(CONF_CURSOR_BLINK, default=True): cv.boolean,
@@ -111,17 +104,6 @@ async def to_code(config):
     
     # Add Arduino_GFX library dependency
     cg.add_library("moononournation/GFX Library for Arduino", "1.6.0")
-    
-    # Set button pins if configured
-    if CONF_DOWN_BUTTON_PIN in config:
-        pin = await cg.gpio_pin_expression(config[CONF_DOWN_BUTTON_PIN])
-        cg.add(var.set_down_button_pin(pin))
-    if CONF_ENTER_BUTTON_PIN in config:
-        pin = await cg.gpio_pin_expression(config[CONF_ENTER_BUTTON_PIN])
-        cg.add(var.set_enter_button_pin(pin))
-    if CONF_BACK_BUTTON_PIN in config:
-        pin = await cg.gpio_pin_expression(config[CONF_BACK_BUTTON_PIN])
-        cg.add(var.set_back_button_pin(pin))
     
     # Set configuration
     cg.add(var.set_mqtt_topic_prefix(config[CONF_MQTT_TOPIC_PREFIX]))

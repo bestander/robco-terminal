@@ -84,11 +84,6 @@ class RobCoTerminal : public Component {
   void set_font_color(uint32_t color) { this->font_color_ = color; }
   void set_background_color(uint32_t color) { this->background_color_ = color; }
   
-  // Button configuration
-  void set_down_button_pin(GPIOPin *pin) { this->down_button_pin_ = pin; }
-  void set_enter_button_pin(GPIOPin *pin) { this->enter_button_pin_ = pin; }
-  void set_back_button_pin(GPIOPin *pin) { this->back_button_pin_ = pin; }
-  
   // Menu management
   void add_menu_item(const std::string &title, const std::string &type,
                      const std::string &mqtt_topic, const std::string &mqtt_payload,
@@ -111,15 +106,14 @@ class RobCoTerminal : public Component {
   
   // Display rendering - now renders directly to Arduino_GFX
   void render_display(bool full_redraw = true);
+  
+  // UART logger integration
+  void setup_uart_logger();
+  void loop_uart_logger();
 
  private:
   void initialize_display();
-  void initialize_buttons();
     
-  // Button handling
-  void check_buttons();
-  void handle_button_press(int button_id);
-  
   // OTA Safety state
   bool disabled_for_ota_{false};
 
@@ -130,11 +124,6 @@ class RobCoTerminal : public Component {
   bool cursor_blink_;
   uint32_t font_color_;
   uint32_t background_color_;
-  
-  // Physical button pins
-  GPIOPin *down_button_pin_{nullptr};
-  GPIOPin *enter_button_pin_{nullptr};
-  GPIOPin *back_button_pin_{nullptr};
   
   // Button state tracking
   bool down_button_last_state_{true};   // Pull-up default

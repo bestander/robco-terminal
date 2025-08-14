@@ -33,13 +33,12 @@ esp32:
 
 # Enable logging (over WiFi when connected, USB when not) - reduced for OTA
 logger:
-  level: DEBUG  # Reduced from DEBUG to save space
+  level: INFO
   baud_rate: 115200
   hardware_uart: UART0
   logs:
     component: INFO
     robco_terminal: INFO  # Reduced from DEBUG
-    uart_logger: DEBUG
     wifi: INFO
     api: INFO
     ota: INFO
@@ -141,10 +140,6 @@ i2c:
 ota_safety:
   id: ota_safety_component
   enable_http_endpoints: true  # Enable HTTP API for OTA mode
-
-
-# I2C Slave Logger - listens for messages from Pico master
-uart_logger:
 
 
 # RobCo Terminal with integrated Arduino_GFX display and USB keyboard

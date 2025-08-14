@@ -81,9 +81,6 @@ void RobCoTerminal::setup() {
   // Register OTA callbacks for better stability
   ESP_LOGI(TAG, "Registering OTA event callbacks...");
   
-  // Initialize physical buttons
-  this->initialize_buttons();
-  
   this->current_state_ = TerminalState::BOOTING;
   this->last_rendered_state_ = TerminalState::BOOTING;
   this->boot_complete_ = false;
@@ -114,6 +111,8 @@ void RobCoTerminal::setup() {
     this->current_state_ = TerminalState::MAIN_MENU;
   }
   
+  this->setup_uart_logger();
+
   ESP_LOGCONFIG(TAG, "RobCo Terminal setup complete");
 }
 
@@ -165,31 +164,6 @@ void RobCoTerminal::initialize_display() {
   #endif
 
   ESP_LOGCONFIG(TAG, "Arduino_GFX display initialized with optimized timing!");
-}
-
-void RobCoTerminal::initialize_buttons() {
-  ESP_LOGI(TAG, "Initializing physical buttons...");
-  
-  // Configure button pins with internal pull-ups
-  if (this->down_button_pin_ != nullptr) {
-    this->down_button_pin_->setup();
-    this->down_button_pin_->pin_mode(gpio::FLAG_INPUT | gpio::FLAG_PULLUP);
-    ESP_LOGI(TAG, "DOWN button configured");
-  }
-  
-  if (this->enter_button_pin_ != nullptr) {
-    this->enter_button_pin_->setup();
-    this->enter_button_pin_->pin_mode(gpio::FLAG_INPUT | gpio::FLAG_PULLUP);
-    ESP_LOGI(TAG, "ENTER button configured");
-  }
-  
-  if (this->back_button_pin_ != nullptr) {
-    this->back_button_pin_->setup();
-    this->back_button_pin_->pin_mode(gpio::FLAG_INPUT | gpio::FLAG_PULLUP);
-    ESP_LOGI(TAG, "BACK/ESC button configured");
-  }
-  
-  ESP_LOGI(TAG, "Physical buttons initialized");
 }
 
 void RobCoTerminal::loop() {
@@ -314,9 +288,8 @@ void RobCoTerminal::loop() {
     this->render_display(needs_full_redraw);
     last_render = now;
   }
-  
-  // Check physical buttons
-  this->check_buttons();
+
+  this->loop_uart_logger();
 }
 
 void RobCoTerminal::dump_config() {
@@ -1012,63 +985,69 @@ void RobCoTerminal::enable_after_ota() {
   ESP_LOGI(TAG, "Component re-enabled, will redraw on next loop");
 }
 
-void RobCoTerminal::check_buttons() {
-  uint32_t now = millis();
-  
-  // Check buttons every 50ms to avoid bounce and excessive processing
-  if ((now - this->last_button_check_) < 50) {
-    return;
-  }
-  this->last_button_check_ = now;
-  
-  // Check DOWN button (GPIO 17)
-  if (this->down_button_pin_ != nullptr) {
-    bool current_state = this->down_button_pin_->digital_read();
-    if (!current_state && this->down_button_last_state_) { // Button pressed (HIGH to LOW)
-      ESP_LOGI(TAG, "DOWN button pressed");
-      this->handle_button_press(1); // Button ID 1 for DOWN
-    }
-    this->down_button_last_state_ = current_state;
-  }
-  
-  // Check ENTER button (GPIO 18)
-  if (this->enter_button_pin_ != nullptr) {
-    bool current_state = this->enter_button_pin_->digital_read();
-    if (!current_state && this->enter_button_last_state_) { // Button pressed (HIGH to LOW)
-      ESP_LOGI(TAG, "ENTER button pressed");
-      this->handle_button_press(2); // Button ID 2 for ENTER
-    }
-    this->enter_button_last_state_ = current_state;
-  }
-  
-  // Check BACK/ESC button (GPIO 19)
-  if (this->back_button_pin_ != nullptr) {
-    bool current_state = this->back_button_pin_->digital_read();
-    if (!current_state && this->back_button_last_state_) { // Button pressed (HIGH to LOW)
-      ESP_LOGI(TAG, "BACK/ESC button pressed");
-      this->handle_button_press(3); // Button ID 3 for BACK/ESC
-    }
-    this->back_button_last_state_ = current_state;
+// ===== UART LOGGER INTEGRATION =====
+static volatile bool uart_data_received = false;
+static volatile size_t uart_data_len = 0;
+static char uart_buffer[128];
+
+void RobCoTerminal::setup_uart_logger() {
+  ESP_LOGCONFIG(TAG, "Setting up UART Logger on RX=GPIO17, TX=GPIO18, baud rate=%d...", 9600);
+  Serial1.end();
+  Serial1.setRxBufferSize(256);
+  Serial1.begin(9600, SERIAL_8N1, 17, 18);
+  Serial1.flush();
+  if (Serial1) {
+    ESP_LOGI(TAG, "UART Logger initialized successfully, Serial1 active");
+  } else {
+    ESP_LOGE(TAG, "UART Logger failed to initialize Serial1");
   }
 }
 
-void RobCoTerminal::handle_button_press(int button_id) {
-  // Map button presses to keyboard equivalents
-  switch (button_id) {
-    case 1: // DOWN button
-      this->handle_key_press(0x51, 0); // DOWN ARROW key code
-      break;
-    case 2: // ENTER button
-      this->handle_key_press(0x28, 0); // ENTER key code
-      break;
-    case 3: // BACK/ESC button
-      this->handle_key_press(0x29, 0); // ESCAPE key code
-      break;
-    default:
-      ESP_LOGW(TAG, "Unknown button ID: %d", button_id);
-      break;
+void RobCoTerminal::loop_uart_logger() {
+  int available_bytes = Serial1.available();
+  if (available_bytes > 0 && available_bytes <= 256) {
+    ESP_LOGD(TAG, "UART has %d bytes available", available_bytes);
+  } else if (available_bytes > 256) {
+    ESP_LOGE(TAG, "Invalid available bytes: %d, possible driver error", available_bytes);
+    Serial1.flush();
+  } else {
+    static uint32_t last_debug = 0;
+    if (millis() - last_debug > 1000) {
+      ESP_LOGD(TAG, "No UART data available");
+      last_debug = millis();
+    }
+  }
+
+  while (Serial1.available() && uart_data_len < sizeof(uart_buffer) - 1) {
+    char c = Serial1.read();
+    if (c == '\n' || c == '\r') {
+      if (uart_data_len > 0) {
+        uart_buffer[uart_data_len] = '\0';
+        ESP_LOGD(TAG, "Received %d bytes", uart_data_len);
+        uart_data_received = true;
+      }
+      uart_data_len = 0;
+    } else {
+      uart_buffer[uart_data_len++] = c;
+      ESP_LOGD(TAG, "Read byte %d: 0x%02X ('%c')", uart_data_len - 1, c, isprint(c) ? c : '.');
+    }
+  }
+
+  if (uart_data_received) {
+    ESP_LOGI(TAG, "Received from Pico: %s", uart_buffer);
+    // Optional: Send ACK back to Pico (uncomment if needed)
+    // Serial1.println("ACK");
+    // ESP_LOGD(TAG, "Sent to Pico: ACK");
+    uart_data_received = false;
+  }
+
+  static uint32_t last_check = 0;
+  if (millis() - last_check > 5000) {
+    ESP_LOGD(TAG, "UART Logger status check: active, Serial1 initialized=%d", Serial1 ? 1 : 0);
+    last_check = millis();
   }
 }
+
 
 }  // namespace robco_terminal
 }  // namespace esphome
