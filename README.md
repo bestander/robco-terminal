@@ -239,6 +239,36 @@ mqtt:
 | Escape | Go back / Exit submenu |
 | Ctrl+S | Save (in text editor) |
 
+# RobCo Terminal
+
+RobCo Terminal is a Fallout-inspired hardware terminal built on ESP32 with a graphical display, menu system, MQTT integration, and OTA safety features.
+
+## USB Keyboard Support
+For USB keyboard input, RobCo Terminal uses a Raspberry Pi Pico as a USB-to-UART keyboard controller. The Pico acts as a USB host for the keyboard and transmits key events over UART to the ESP32.
+
+- **Pico UART TX (GPIO 8)** → Connect to ESP32 RX (GPIO 17)
+- **Pico UART RX (GPIO 9)** → Connect to ESP32 TX (GPIO 18)
+- **5V and GND** → Connect between Pico and ESP32 for power and ground
+- **Baud Rate:** 9600
+- **Firmware:** [pi-pico-usb-uart-host](https://github.com/bestander/pi-pico-usb-uart-host)
+
+The Pico firmware handles USB keyboard input and sends raw HID reports to the terminal. For details and setup instructions, see the firmware repository above.
+
+## Features
+- Fallout-style menu and display
+- MQTT integration for Home Assistant
+- OTA update safety
+- USB keyboard support via Pico
+- Physical button support (optional)
+
+## Getting Started
+- Connect display and buttons as described in hardware documentation
+- Connect Raspberry Pi Pico as described above for USB keyboard support
+- Configure WiFi and MQTT in `robco_terminal.yaml`
+
+## License
+MIT
+
 ## Customization
 
 ### Adding New Menu Items
