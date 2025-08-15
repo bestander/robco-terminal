@@ -50,6 +50,23 @@ void KeyboardManager::loop() {
       std::string key_str = hid_keycode_to_string(report[i], modifiers);
       ESP_LOGI(TAG, "Key pressed: %s (code: 0x%02X, modifiers: 0x%02X)", key_str.c_str(), report[i], modifiers);
       parent_->handle_key_press(report[i], modifiers);
+
+      if (report[i] == 0x4) {
+        ESP_LOGI(TAG, "Toggling pin 21 on 'a' key press");
+        static bool pin21_state = false;
+        pin21_state = !pin21_state;
+  uint8_t pin21[4] = {0x01, 21, static_cast<uint8_t>(pin21_state ? 1 : 0), '\n'};
+        Serial1.write(pin21, 4);
+      }
+
+      // // Toggle pin 17 when 's' is pressed (keycode 0x16)
+      if (report[i] == 0x16) {
+        ESP_LOGI(TAG, "Toggling pin 17 on 's' key press");
+        static bool pin17_state = false;
+        pin17_state = !pin17_state;
+  uint8_t cmd_pin17[4] = {0x01, 17, static_cast<uint8_t>(pin17_state ? 1 : 0), '\n'};
+        Serial1.write(cmd_pin17, 4);
+      }
     }
   }
 
