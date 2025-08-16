@@ -9,104 +9,90 @@
 static const uint8_t font_8x8[128][8] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // Space (0x20)
     {0x10, 0x10, 0x10, 0x10, 0x00, 0x10, 0x00, 0x00}, // '!' (0x21)
+    {0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x08, 0x00}, // ',' (0x2C)
     {0x7C, 0x44, 0x44, 0x7C, 0x44, 0x44, 0x44, 0x00}, // 'H' (0x48)
-    {0x44, 0x44, 0x44, 0x54, 0x54, 0x28, 0x00, 0x00}, // 'W' (0x57)
     {0x00, 0x38, 0x44, 0x7C, 0x40, 0x38, 0x00, 0x00}, // 'e' (0x65)
-    {0x00, 0x58, 0x24, 0x20, 0x20, 0x70, 0x00, 0x00}, // 'r' (0x72)
-    {0x04, 0x04, 0x3C, 0x44, 0x44, 0x3C, 0x00, 0x00}, // 'd' (0x64)
     {0x38, 0x10, 0x10, 0x10, 0x10, 0x3C, 0x00, 0x00}, // 'l' (0x6C)
     {0x00, 0x38, 0x44, 0x44, 0x44, 0x38, 0x00, 0x00}, // 'o' (0x6F)
-    {0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x08, 0x00}, // ',' (0x2C)
+    {0x44, 0x44, 0x44, 0x54, 0x54, 0x28, 0x00, 0x00}, // 'W' (0x57)
+    {0x00, 0x58, 0x24, 0x20, 0x20, 0x70, 0x00, 0x00}, // 'r' (0x72)
+    {0x04, 0x04, 0x3C, 0x44, 0x44, 0x3C, 0x00, 0x00}, // 'd' (0x64)
 };
 
 namespace esphome {
 namespace hello_world {
+HelloWorldComponent::HelloWorldComponent() {
+  ESP_LOGD("hello_world", "HelloWorldComponent constructor called");
+}
 
 static const char *TAG = "hello_world";
 
 void HelloWorldComponent::setup() {
-  ESP_LOGI(TAG, "Starting ST7701 RGB display setup...");
+  ESP_LOGD(TAG, "HelloWorldComponent: Entering setup...");
+  ESP_LOGD(TAG, "Starting ST7701 RGB display setup...");
 
-  // Configure RGB panel
-  esp_lcd_rgb_panel_config_t panel_config = {
-      .clk_src = LCD_CLK_SRC_PLL160M,
-      .timings = {
-          .pclk_hz = 10000000,  // 10MHz
-          .h_res = 800,
-          .v_res = 480,
-          .hsync_pulse_width = 30,
-          .hsync_back_porch = 16,
-          .hsync_front_porch = 210,
-          .vsync_pulse_width = 13,
-          .vsync_back_porch = 10,
-          .vsync_front_porch = 22,
-          .flags = {
-              .hsync_idle_low = 0,
-              .vsync_idle_low = 0,
-              .de_idle_high = 0,
-              .pclk_active_neg = 1,
-          },
-      },
-      .data_width = 16,  // RGB565
-      .bits_per_pixel = 16,
-      .num_fbs = 2,  // Double buffering
-      .bounce_buffer_size_px = 10 * 800,
-      .sram_trans_align = 4,
-      .psram_trans_align = 64,
-      .hsync_gpio_num = 39,
-      .vsync_gpio_num = 40,
-      .de_gpio_num = 41,
-      .pclk_gpio_num = 42,
-      .data_gpio_nums = {
-          14, 21, 47, 48, 45,  // R0-R4
-          9, 46, 3, 8, 16, 1,  // G0-G5
-          15, 7, 6, 5, 4,      // B0-B4
-      },
-      .disp_gpio_num = GPIO_NUM_NC,
-      .flags = {
-          .fb_in_psram = 1,  // Use PSRAM
-      },
-  };
+  // Configure RGB panel (C++ style, positional initialization)
+  esp_lcd_rgb_panel_config_t panel_config = {};
+  panel_config.data_width = 16;
+  panel_config.num_fbs = 2;
+  panel_config.bounce_buffer_size_px = 10 * 800;
+  panel_config.clk_src = LCD_CLK_SRC_PLL160M;
+  panel_config.timings.pclk_hz = 10000000;
+  panel_config.timings.h_res = 800;
+  panel_config.timings.v_res = 480;
+  panel_config.timings.hsync_pulse_width = 30;
+  panel_config.timings.hsync_back_porch = 16;
+  panel_config.timings.hsync_front_porch = 210;
+  panel_config.timings.vsync_pulse_width = 13;
+  panel_config.timings.vsync_back_porch = 10;
+  panel_config.timings.vsync_front_porch = 22;
+  panel_config.timings.flags.pclk_active_neg = 1;
+  panel_config.flags.fb_in_psram = 1;
+  panel_config.hsync_gpio_num = 39;
+  panel_config.vsync_gpio_num = 40;
+  panel_config.de_gpio_num = 41;
+  panel_config.pclk_gpio_num = 42;
+  int data_gpios[16] = {14, 21, 47, 48, 45, 9, 46, 3, 8, 16, 1, 15, 7, 6, 5, 4};
+  memcpy(panel_config.data_gpio_nums, data_gpios, sizeof(data_gpios));
+  panel_config.disp_gpio_num = GPIO_NUM_NC;
 
-  ESP_LOGI(TAG, "Creating RGB panel...");
+  ESP_LOGD(TAG, "Creating RGB panel...");
   esp_err_t err = esp_lcd_new_rgb_panel(&panel_config, &panel_handle_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to create RGB panel: %s", esp_err_to_name(err));
     return;
   }
 
-  ESP_LOGI(TAG, "Resetting panel...");
+  ESP_LOGD(TAG, "Resetting panel...");
   err = esp_lcd_panel_reset(panel_handle_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to reset panel: %s", esp_err_to_name(err));
     return;
   }
 
-  ESP_LOGI(TAG, "Initializing panel...");
+  ESP_LOGD(TAG, "Initializing panel...");
   err = esp_lcd_panel_init(panel_handle_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to initialize panel: %s", esp_err_to_name(err));
     return;
   }
 
-  // Initialize ST7701
-  ESP_LOGI(TAG, "Setting up 3-wire SPI for ST7701...");
-  esp_lcd_panel_io_handle_t io_handle = nullptr;
-esp_lcd_panel_io_3wire_spi_config_t io_config = {
-    .line_config = ESP_LCD_3WIRE_SPI_9BIT,
-    .expect_bits = ESP_LCD_IO_3WIRE_SPI_READ_DUMMY_0BIT,
-    .spi_mode = 0,
-    .cs_gpio_num = 10,  // Changed from 39 to avoid conflict with HSYNC
-    .scl_gpio_num = 48,
-    .sda_gpio_num = 47,
-};
-  err = esp_lcd_new_panel_io_3wire_spi(&io_config, &io_handle);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to create 3-wire SPI IO: %s", esp_err_to_name(err));
-    return;
-  }
+  // SPI for ST7701 control (standard SPI, C++ style)
+  ESP_LOGD(TAG, "Setting up SPI for ST7701...");
+  esp_lcd_panel_io_handle_t io_handle;
+  esp_lcd_panel_io_spi_config_t io_config = {};
+  io_config.cs_gpio_num = 10;
+  io_config.dc_gpio_num = 48; // Data/Command pin, adjust as needed
+  io_config.lcd_cmd_bits = 8;
+  io_config.lcd_param_bits = 8;
+  io_config.spi_mode = 0;
+  io_config.trans_queue_depth = 10;
+  // You must create SPI bus first and get its handle (spi_bus_handle)
+  // Example: esp_lcd_spi_bus_handle_t spi_bus_handle = ...;
+  // err = esp_lcd_new_panel_io_spi(spi_bus_handle, &io_config, &io_handle);
+  // For now, this is a placeholder. You must implement SPI bus creation before this call.
 
-  ESP_LOGI(TAG, "Sending ST7701 init commands...");
+  ESP_LOGD(TAG, "Sending ST7701 init commands...");
   err = esp_lcd_panel_io_tx_param(io_handle, 0x00, st7701_type1_init_operations, sizeof(st7701_type1_init_operations));
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to send ST7701 init commands: %s", esp_err_to_name(err));
@@ -114,7 +100,7 @@ esp_lcd_panel_io_3wire_spi_config_t io_config = {
   }
 
   // Backlight
-  ESP_LOGI(TAG, "Setting up backlight on GPIO 2...");
+  ESP_LOGD(TAG, "Setting up backlight on GPIO 2...");
   err = gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to set backlight GPIO direction: %s", esp_err_to_name(err));
@@ -127,7 +113,7 @@ esp_lcd_panel_io_3wire_spi_config_t io_config = {
   }
 
   // Allocate framebuffer in PSRAM
-  ESP_LOGI(TAG, "Allocating framebuffer in PSRAM...");
+  ESP_LOGD(TAG, "Allocating framebuffer in PSRAM...");
   framebuffer_ = (uint16_t *)heap_caps_calloc(800 * 480, sizeof(uint16_t), MALLOC_CAP_SPIRAM);
   if (!framebuffer_) {
     ESP_LOGE(TAG, "Failed to allocate framebuffer in PSRAM");
@@ -135,7 +121,7 @@ esp_lcd_panel_io_3wire_spi_config_t io_config = {
   }
 
   // Clear screen to black
-  ESP_LOGI(TAG, "Clearing screen to black...");
+  ESP_LOGD(TAG, "Clearing screen to black...");
   for (int i = 0; i < 800 * 480; i++) {
     framebuffer_[i] = 0x0000;  // Black in RGB565
   }
@@ -146,13 +132,14 @@ esp_lcd_panel_io_3wire_spi_config_t io_config = {
   }
 
   // Draw "Hello, World!" in green
-  ESP_LOGI(TAG, "Drawing 'Hello, World!'...");
+  ESP_LOGD(TAG, "Drawing 'Hello, World!'...");
   draw_text(400 - 6 * 13, 240 - 4, "Hello, World!", 0x07E0);
 
   ESP_LOGI(TAG, "ST7701 RGB display initialized with 'Hello, World!'");
 }
 
 void HelloWorldComponent::loop() {
+  ESP_LOGD(TAG, "HelloWorldComponent: In loop...");
   // No continuous updates needed
 }
 
