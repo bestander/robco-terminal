@@ -28,6 +28,28 @@ HelloWorldComponent::HelloWorldComponent() {
 static const char *TAG = "hello_world";
 
 void HelloWorldComponent::setup() {
+  // Create SPI bus for panel IO
+  spi_bus_config_t buscfg = {};
+  buscfg.sclk_io_num = 18; // Default SCLK
+  buscfg.mosi_io_num = 23; // Default MOSI
+  buscfg.miso_io_num = -1;
+  buscfg.quadwp_io_num = -1;
+  buscfg.quadhd_io_num = -1;
+  buscfg.max_transfer_sz = 4096;
+
+  ESP_LOGD(TAG, "Initializing SPI bus...");
+  esp_err_t err = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(err));
+    return;
+  }
+
+  esp_lcd_spi_bus_handle_t spi_bus_handle;
+  err = esp_lcd_new_spi_bus(SPI2_HOST, &buscfg, &spi_bus_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to create LCD SPI bus: %s", esp_err_to_name(err));
+    return;
+  }
   ESP_LOGD(TAG, "HelloWorldComponent: Entering setup...");
   ESP_LOGD(TAG, "Starting ST7701 RGB display setup...");
 
@@ -87,10 +109,12 @@ void HelloWorldComponent::setup() {
   io_config.lcd_param_bits = 8;
   io_config.spi_mode = 0;
   io_config.trans_queue_depth = 10;
-  // You must create SPI bus first and get its handle (spi_bus_handle)
-  // Example: esp_lcd_spi_bus_handle_t spi_bus_handle = ...;
-  // err = esp_lcd_new_panel_io_spi(spi_bus_handle, &io_config, &io_handle);
-  // For now, this is a placeholder. You must implement SPI bus creation before this call.
+  ESP_LOGD(TAG, "Creating panel IO SPI...");
+  err = esp_lcd_new_panel_io_spi(spi_bus_handle, &io_config, &io_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to create panel IO SPI: %s", esp_err_to_name(err));
+    return;
+  }
 
   ESP_LOGD(TAG, "Sending ST7701 init commands...");
   err = esp_lcd_panel_io_tx_param(io_handle, 0x00, st7701_type1_init_operations, sizeof(st7701_type1_init_operations));
