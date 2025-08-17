@@ -21,20 +21,8 @@ namespace esphome
         void RobcoDisplayComponent::on_key_press(uint8_t keycode, uint8_t modifiers)
         {
             ESP_LOGI(TAG, "RobcoDisplay received key press: code=0x%02X, modifiers=0x%02X", keycode, modifiers);
-            if (keycode == 0x04 && pico_io_ext_)
-            {
-                static bool pin21_state = false;
-                pin21_state = !pin21_state;
-                pico_io_ext_->setPin(21, pin21_state);
-            }
-            if (key_label_)
-            {
-                char buf[32];
-                snprintf(buf, sizeof(buf), "Key: 0x%02X", keycode);
-                lvgl_port_lock(0);
-                lv_label_set_text(key_label_, buf);
-                lvgl_port_unlock();
-            }
+            menu_state_.on_key_press(keycode);
+            render_menu();
         }
 
         void RobcoDisplayComponent::set_pin(uint8_t pin, bool state)
@@ -139,16 +127,71 @@ namespace esphome
             };
             ESP_ERROR_CHECK(gpio_config(&bk_light));
             gpio_set_level(BSP_LCD_GPIO_BK_LIGHT, BSP_LCD_BK_LIGHT_ON_LEVEL);
+            // Boot messages from robco_terminal.cpp
+            std::vector<std::string> boot_msgs = {
+                "RobCo Industries (TM) Termlink Protocol",
+                "Established 2075",
+                "",
+                "VAULT-TEC TERMINAL SYSTEM",
+                "Initializing...",
+                "",
+                "Boot Sequence Started",
+                "Loading System Drivers...",
+                "Checking Memory Banks...",
+                "Memory Test: OK",
+                "8MB PSRAM Detected",
+                "16MB Flash Storage Available",
+                "",
+                "Network Interface: ONLINE",
+                "MQTT Client: CONNECTING...",
+                "Home Assistant Integration: READY",
+                "Security Protocols: ACTIVE",
+                "",
+                "System Status: NOMINAL",
+                "Security Level: AUTHORIZED",
+                "Access Level: OVERSEER",
+                "",
+                "Welcome to RobCo Termlink",
+                "Have a Nice Day!",
+                "",
+                "> Press any key to continue..."
+            };
+            menu_state_.set_boot_messages(boot_msgs);
+            // Menu structure
+            std::vector<MenuEntry> menu = {
+                {"Security", MenuEntry::Type::SUBMENU, {
+                    {"Vault Door Control", MenuEntry::Type::ACTION, {}, {}, ""}
+                }, {}, ""},
+                {"Overseer Logs", MenuEntry::Type::SUBMENU, {
+                    {"List Entries", MenuEntry::Type::LOGS, {}, {}, ""},
+                    {"Add Entry", MenuEntry::Type::ACTION, {}, {}, ""},
+                    {"Remove Entry", MenuEntry::Type::ACTION, {}, {}, ""}
+                }, {}, ""},
+                {"System Status", MenuEntry::Type::STATUS, {}, {}, "outside temperature"}
+            };
+            menu_state_.set_menu(menu);
             lvgl_port_lock(0);
             key_label_ = lv_label_create(lv_scr_act());
             lv_label_set_text(key_label_, "Robco Display");
             lv_obj_align(key_label_, LV_ALIGN_CENTER, 0, 0);
             lvgl_port_unlock();
+            render_menu();
         }
 
         void RobcoDisplayComponent::loop()
         {
             // No periodic logic needed for this example
+        }
+
+        void RobcoDisplayComponent::render_menu()
+        {
+            lvgl_port_lock(0);
+            if (key_label_)
+            {
+                std::string text = menu_state_.get_display_text();
+                lv_label_set_text(key_label_, text.c_str());
+            }
+            lvgl_port_unlock();
         }
 
     } // namespace robco_display
