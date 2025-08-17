@@ -48,7 +48,7 @@
         .vsync_pulse_width = 13,       \
         .vsync_back_porch = 10,        \
         .vsync_front_porch = 22,       \
-        .flags = { .pclk_active_neg = true }, \
+        .flags = { .pclk_active_neg = true } \
     }
 
 #define BSP_TOUCH_GPIO_SCL GPIO_NUM_20
