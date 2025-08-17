@@ -1,27 +1,35 @@
-#ifndef HELLO_WORLD_COMPONENT_H
-#define HELLO_WORLD_COMPONENT_H
-
-#include "esphome.h"
-#include "esp_lcd_panel_rgb.h"
+#pragma once
+#include "esphome/core/component.h"
+extern "C" {
+#include "bsp.h"
+#include "esp_lvgl_port.h"
+#include "driver/i2c_master.h"
+#include "lv_examples.h"
+#include "lv_demos.h"
+}
 
 namespace esphome {
 namespace hello_world {
 
-class HelloWorldComponent : public Component {
- public:
-  HelloWorldComponent();
+class HelloWorldComponent : public esphome::Component {
+public:
   void setup() override;
   void loop() override;
-  void dump_config() override;
-  float get_setup_priority() const override { return setup_priority::PROCESSOR; }
-
- private:
-  esp_lcd_panel_handle_t panel_handle_ = nullptr;
-  uint16_t *framebuffer_ = nullptr;
-  void draw_text(int x, int y, const char *text, uint16_t color);
+// private:
+//   esp_lcd_panel_handle_t lcd_panel = nullptr;
+//   i2c_master_bus_handle_t my_bus = nullptr;
+//   esp_lcd_panel_io_handle_t touch_io_handle = nullptr;
+//   esp_lcd_touch_handle_t touch_handle = nullptr;
+//   lv_display_t *lvgl_disp = nullptr;
+//   lv_indev_t *lvgl_touch_indev = nullptr;
+//   esp_err_t app_lcd_init(esp_lcd_panel_handle_t *lp);
+//   esp_err_t app_touch_init(i2c_master_bus_handle_t *bus,
+//                           esp_lcd_panel_io_handle_t *tp_io,
+//                           esp_lcd_touch_handle_t *tp);
+//   esp_err_t app_lvgl_init(esp_lcd_panel_handle_t lp, esp_lcd_touch_handle_t tp,
+//                          lv_display_t **lv_disp, lv_indev_t **lv_touch_indev);
 };
+
 
 }  // namespace hello_world
 }  // namespace esphome
-
-#endif

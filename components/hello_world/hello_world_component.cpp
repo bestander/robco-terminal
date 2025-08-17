@@ -1,204 +1,135 @@
 #include "hello_world_component.h"
 #include "esphome/core/log.h"
-#include "st7701_init.h"
-#include <esp_lcd_panel_io.h>
-#include <esp_lcd_panel_vendor.h>
-#include <esp_lcd_panel_ops.h>
 
-// Simple 8x8 bitmap font (ASCII subset for "Hello, World!")
-static const uint8_t font_8x8[128][8] = {
-    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // Space (0x20)
-    {0x10, 0x10, 0x10, 0x10, 0x00, 0x10, 0x00, 0x00}, // '!' (0x21)
-    {0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x08, 0x00}, // ',' (0x2C)
-    {0x7C, 0x44, 0x44, 0x7C, 0x44, 0x44, 0x44, 0x00}, // 'H' (0x48)
-    {0x00, 0x38, 0x44, 0x7C, 0x40, 0x38, 0x00, 0x00}, // 'e' (0x65)
-    {0x38, 0x10, 0x10, 0x10, 0x10, 0x3C, 0x00, 0x00}, // 'l' (0x6C)
-    {0x00, 0x38, 0x44, 0x44, 0x44, 0x38, 0x00, 0x00}, // 'o' (0x6F)
-    {0x44, 0x44, 0x44, 0x54, 0x54, 0x28, 0x00, 0x00}, // 'W' (0x57)
-    {0x00, 0x58, 0x24, 0x20, 0x20, 0x70, 0x00, 0x00}, // 'r' (0x72)
-    {0x04, 0x04, 0x3C, 0x44, 0x44, 0x3C, 0x00, 0x00}, // 'd' (0x64)
-};
 
 namespace esphome {
 namespace hello_world {
-HelloWorldComponent::HelloWorldComponent() {
-  ESP_LOGD("hello_world", "HelloWorldComponent constructor called");
-}
 
-static const char *TAG = "hello_world";
+static const char *TAG = "HelloWorldComponent";
+
+// esp_err_t HelloWorldComponent::app_lcd_init(esp_lcd_panel_handle_t *lp) {
+//     esp_err_t ret = ESP_OK;
+//     ESP_LOGI(TAG, "Initialize RGB panel");
+//     const esp_lcd_rgb_panel_config_t conf = {
+//         .clk_src = LCD_CLK_SRC_DEFAULT,
+//         .timings = BSP_LCD_PANEL_TIMING(),
+//         .data_width = 16,
+//         .num_fbs = 2,
+//         .bounce_buffer_size_px = BSP_LCD_H_RES * 10,
+//         .hsync_gpio_num = BSP_LCD_GPIO_HSYNC,
+//         .vsync_gpio_num = BSP_LCD_GPIO_VSYNC,
+//         .de_gpio_num = BSP_LCD_GPIO_DE,
+//         .pclk_gpio_num = BSP_LCD_GPIO_PCLK,
+//         .disp_gpio_num = BSP_LCD_GPIO_DISP,
+//         .data_gpio_nums = BSP_LCD_GPIO_DATA(),
+//         .flags = {.fb_in_psram = 1},
+//     };
+//     if (esp_lcd_new_rgb_panel(&conf, lp) != ESP_OK) {
+//         ESP_LOGE(TAG, "RGB init failed");
+//         return ESP_FAIL;
+//     }
+//     if (esp_lcd_panel_init(*lp) != ESP_OK) {
+//         ESP_LOGE(TAG, "LCD init failed");
+//         esp_lcd_panel_del(*lp);
+//         return ESP_FAIL;
+//     }
+//     return ret;
+// }
+
+// esp_err_t HelloWorldComponent::app_touch_init(i2c_master_bus_handle_t *bus,
+//                                               esp_lcd_panel_io_handle_t *tp_io,
+//                                               esp_lcd_touch_handle_t *tp) {
+//     if (!*bus) {
+//         ESP_LOGI(TAG, "creating i2c master bus");
+//         const i2c_master_bus_config_t i2c_conf = {
+//             .i2c_port = -1,
+//             .sda_io_num = BSP_TOUCH_GPIO_SDA,
+//             .scl_io_num = BSP_TOUCH_GPIO_SCL,
+//             .clk_source = I2C_CLK_SRC_DEFAULT,
+//             .glitch_ignore_cnt = 7,
+//             .flags = {.enable_internal_pullup = 1},
+//         };
+//         if (i2c_new_master_bus(&i2c_conf, bus) != ESP_OK) {
+//             ESP_LOGE(TAG, "failed to create i2c master bus");
+//             return ESP_FAIL;
+//         }
+//     }
+//     if (!*tp_io) {
+//         ESP_LOGI(TAG, "creating touch panel io");
+//         esp_lcd_panel_io_i2c_config_t tp_io_cfg = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
+//         tp_io_cfg.scl_speed_hz = 400000;
+//         if (esp_lcd_new_panel_io_i2c_v2(*bus, &tp_io_cfg, tp_io) != ESP_OK) {
+//             ESP_LOGE(TAG, "Failed to create touch panel io");
+//             return ESP_FAIL;
+//         }
+//     }
+//     const esp_lcd_touch_config_t tp_cfg = {
+//         .x_max = BSP_LCD_H_RES,
+//         .y_max = BSP_LCD_V_RES,
+//         .rst_gpio_num = BSP_TOUCH_GPIO_RST,
+//         .int_gpio_num = BSP_TOUCH_GPIO_INT,
+//     };
+//     return esp_lcd_touch_new_i2c_gt911(*tp_io, &tp_cfg, tp);
+// }
+
+// esp_err_t HelloWorldComponent::app_lvgl_init(esp_lcd_panel_handle_t lp, esp_lcd_touch_handle_t tp,
+//                                              lv_display_t **lv_disp, lv_indev_t **lv_touch_indev) {
+//     const lvgl_port_cfg_t lvgl_cfg = {
+//         .task_priority = 4,
+//         .task_stack = 8192,
+//         .task_affinity = -1,
+//         .task_max_sleep_ms = 500,
+//         .timer_period_ms = 5
+//     };
+//     if (lvgl_port_init(&lvgl_cfg) != ESP_OK) {
+//         ESP_LOGE(TAG, "LVGL port initialization failed");
+//         return ESP_FAIL;
+//     }
+//     uint32_t buff_size = BSP_LCD_H_RES * 100;
+//     const lvgl_port_display_cfg_t disp_cfg = {
+//         .panel_handle = lp,
+//         .buffer_size = buff_size,
+//         .double_buffer = 0,
+//         .hres = BSP_LCD_H_RES,
+//         .vres = BSP_LCD_V_RES,
+//         .monochrome = false,
+//         .color_format = LV_COLOR_FORMAT_RGB565,
+//         .rotation = {.swap_xy = false, .mirror_x = false, .mirror_y = false},
+//         .flags = {.buff_dma = false, .buff_spiram = false, .full_refresh = false, .direct_mode = true, .swap_bytes = false}
+//     };
+//     const lvgl_port_display_rgb_cfg_t rgb_cfg = {
+//         .flags = {.bb_mode = true, .avoid_tearing = true}
+//     };
+//     *lv_disp = lvgl_port_add_disp_rgb(&disp_cfg, &rgb_cfg);
+//     const lvgl_port_touch_cfg_t touch_cfg = {
+//         .disp = *lv_disp,
+//         .handle = tp,
+//     };
+//     *lv_touch_indev = lvgl_port_add_touch(&touch_cfg);
+//     return ESP_OK;
+// }
 
 void HelloWorldComponent::setup() {
-  // Create SPI bus for panel IO
-  spi_bus_config_t buscfg = {};
-  buscfg.sclk_io_num = 18; // Default SCLK
-  buscfg.mosi_io_num = 23; // Default MOSI
-  buscfg.miso_io_num = -1;
-  buscfg.quadwp_io_num = -1;
-  buscfg.quadhd_io_num = -1;
-  buscfg.max_transfer_sz = 4096;
-
-  ESP_LOGD(TAG, "Initializing SPI bus...");
-  esp_err_t err = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(err));
-    return;
-  }
-
-  esp_lcd_spi_bus_handle_t spi_bus_handle;
-  err = esp_lcd_new_spi_bus(SPI2_HOST, &buscfg, &spi_bus_handle);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to create LCD SPI bus: %s", esp_err_to_name(err));
-    return;
-  }
-  ESP_LOGD(TAG, "HelloWorldComponent: Entering setup...");
-  ESP_LOGD(TAG, "Starting ST7701 RGB display setup...");
-
-  // Configure RGB panel (C++ style, positional initialization)
-  esp_lcd_rgb_panel_config_t panel_config = {};
-  panel_config.data_width = 16;
-  panel_config.num_fbs = 2;
-  panel_config.bounce_buffer_size_px = 10 * 800;
-  panel_config.clk_src = LCD_CLK_SRC_PLL160M;
-  panel_config.timings.pclk_hz = 10000000;
-  panel_config.timings.h_res = 800;
-  panel_config.timings.v_res = 480;
-  panel_config.timings.hsync_pulse_width = 30;
-  panel_config.timings.hsync_back_porch = 16;
-  panel_config.timings.hsync_front_porch = 210;
-  panel_config.timings.vsync_pulse_width = 13;
-  panel_config.timings.vsync_back_porch = 10;
-  panel_config.timings.vsync_front_porch = 22;
-  panel_config.timings.flags.pclk_active_neg = 1;
-  panel_config.flags.fb_in_psram = 1;
-  panel_config.hsync_gpio_num = 39;
-  panel_config.vsync_gpio_num = 40;
-  panel_config.de_gpio_num = 41;
-  panel_config.pclk_gpio_num = 42;
-  int data_gpios[16] = {14, 21, 47, 48, 45, 9, 46, 3, 8, 16, 1, 15, 7, 6, 5, 4};
-  memcpy(panel_config.data_gpio_nums, data_gpios, sizeof(data_gpios));
-  panel_config.disp_gpio_num = GPIO_NUM_NC;
-
-  ESP_LOGD(TAG, "Creating RGB panel...");
-  esp_err_t err = esp_lcd_new_rgb_panel(&panel_config, &panel_handle_);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to create RGB panel: %s", esp_err_to_name(err));
-    return;
-  }
-
-  ESP_LOGD(TAG, "Resetting panel...");
-  err = esp_lcd_panel_reset(panel_handle_);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to reset panel: %s", esp_err_to_name(err));
-    return;
-  }
-
-  ESP_LOGD(TAG, "Initializing panel...");
-  err = esp_lcd_panel_init(panel_handle_);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to initialize panel: %s", esp_err_to_name(err));
-    return;
-  }
-
-  // SPI for ST7701 control (standard SPI, C++ style)
-  ESP_LOGD(TAG, "Setting up SPI for ST7701...");
-  esp_lcd_panel_io_handle_t io_handle;
-  esp_lcd_panel_io_spi_config_t io_config = {};
-  io_config.cs_gpio_num = 10;
-  io_config.dc_gpio_num = 48; // Data/Command pin, adjust as needed
-  io_config.lcd_cmd_bits = 8;
-  io_config.lcd_param_bits = 8;
-  io_config.spi_mode = 0;
-  io_config.trans_queue_depth = 10;
-  ESP_LOGD(TAG, "Creating panel IO SPI...");
-  err = esp_lcd_new_panel_io_spi(spi_bus_handle, &io_config, &io_handle);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to create panel IO SPI: %s", esp_err_to_name(err));
-    return;
-  }
-
-  ESP_LOGD(TAG, "Sending ST7701 init commands...");
-  err = esp_lcd_panel_io_tx_param(io_handle, 0x00, st7701_type1_init_operations, sizeof(st7701_type1_init_operations));
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to send ST7701 init commands: %s", esp_err_to_name(err));
-    return;
-  }
-
-  // Backlight
-  ESP_LOGD(TAG, "Setting up backlight on GPIO 2...");
-  err = gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to set backlight GPIO direction: %s", esp_err_to_name(err));
-    return;
-  }
-  err = gpio_set_level(GPIO_NUM_2, 1);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to set backlight GPIO level: %s", esp_err_to_name(err));
-    return;
-  }
-
-  // Allocate framebuffer in PSRAM
-  ESP_LOGD(TAG, "Allocating framebuffer in PSRAM...");
-  framebuffer_ = (uint16_t *)heap_caps_calloc(800 * 480, sizeof(uint16_t), MALLOC_CAP_SPIRAM);
-  if (!framebuffer_) {
-    ESP_LOGE(TAG, "Failed to allocate framebuffer in PSRAM");
-    return;
-  }
-
-  // Clear screen to black
-  ESP_LOGD(TAG, "Clearing screen to black...");
-  for (int i = 0; i < 800 * 480; i++) {
-    framebuffer_[i] = 0x0000;  // Black in RGB565
-  }
-  err = esp_lcd_panel_draw_bitmap(panel_handle_, 0, 0, 800, 480, framebuffer_);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to draw bitmap: %s", esp_err_to_name(err));
-    return;
-  }
-
-  // Draw "Hello, World!" in green
-  ESP_LOGD(TAG, "Drawing 'Hello, World!'...");
-  draw_text(400 - 6 * 13, 240 - 4, "Hello, World!", 0x07E0);
-
-  ESP_LOGI(TAG, "ST7701 RGB display initialized with 'Hello, World!'");
+    ESP_LOGI(TAG, "Setting up HelloWorldComponent");
+    // ESP_ERROR_CHECK(app_lcd_init(&lcd_panel));
+    // ESP_ERROR_CHECK(app_touch_init(&my_bus, &touch_io_handle, &touch_handle));
+    // ESP_ERROR_CHECK(app_lvgl_init(lcd_panel, touch_handle, &lvgl_disp, &lvgl_touch_indev));
+    // const gpio_config_t bk_light = {
+    //     .pin_bit_mask = (1 << BSP_LCD_GPIO_BK_LIGHT),
+    //     .mode = GPIO_MODE_OUTPUT,
+    //     .pull_up_en = GPIO_PULLUP_DISABLE,
+    //     .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    //     .intr_type = GPIO_INTR_DISABLE,
+    // };
+    // ESP_ERROR_CHECK(gpio_config(&bk_light));
+    // gpio_set_level(BSP_LCD_GPIO_BK_LIGHT, BSP_LCD_BK_LIGHT_ON_LEVEL);
+    // lvgl_port_lock(0);
+    // lv_demo_widgets();
+    // lvgl_port_unlock();
 }
 
 void HelloWorldComponent::loop() {
-  ESP_LOGD(TAG, "HelloWorldComponent: In loop...");
-  // No continuous updates needed
-}
-
-void HelloWorldComponent::dump_config() {
-  ESP_LOGCONFIG(TAG, "Hello World Component: Configured for 800x480, 10MHz PCLK");
-}
-
-void HelloWorldComponent::draw_text(int x, int y, const char *text, uint16_t color) {
-  if (!framebuffer_ || !text) {
-    ESP_LOGE(TAG, "Invalid framebuffer or text pointer");
-    return;
-  }
-
-  int cursor_x = x;
-  for (const char *c = text; *c; c++) {
-    if (*c >= 0x20 && *c < 0x80) {
-      const uint8_t *glyph = font_8x8[*c - 0x20];
-      for (int gy = 0; gy < 8; gy++) {
-        for (int gx = 0; gx < 8; gx++) {
-          if (glyph[gy] & (1 << (7 - gx))) {
-            int px = cursor_x + gx;
-            int py = y + gy;
-            if (px >= 0 && px < 800 && py >= 0 && py < 480) {
-              framebuffer_[py * 800 + px] = color;
-            }
-          }
-        }
-      }
-      cursor_x += 8;
-    }
-  }
-  esp_err_t err = esp_lcd_panel_draw_bitmap(panel_handle_, x, y, x + 13 * 8, y + 8, framebuffer_);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to draw text bitmap: %s", esp_err_to_name(err));
-  }
+    // No periodic logic needed for this example
 }
 
 }  // namespace hello_world
