@@ -87,49 +87,8 @@ namespace esphome
             return ret;
         }
 
-        esp_err_t RobcoDisplayComponent::app_touch_init(i2c_master_bus_handle_t *bus,
-                                                        esp_lcd_panel_io_handle_t *tp_io,
-                                                        esp_lcd_touch_handle_t *tp)
-        {
-            if (!*bus)
-            {
-                ESP_LOGI(TAG, "creating i2c master bus");
-                const i2c_master_bus_config_t i2c_conf = {
-                    .i2c_port = -1,
-                    .sda_io_num = BSP_TOUCH_GPIO_SDA,
-                    .scl_io_num = BSP_TOUCH_GPIO_SCL,
-                    .clk_source = I2C_CLK_SRC_DEFAULT,
-                    .glitch_ignore_cnt = 7,
-                    .flags = {.enable_internal_pullup = 1},
-                };
-                if (i2c_new_master_bus(&i2c_conf, bus) != ESP_OK)
-                {
-                    ESP_LOGE(TAG, "failed to create i2c master bus");
-                    return ESP_FAIL;
-                }
-            }
-            if (!*tp_io)
-            {
-                ESP_LOGI(TAG, "creating touch panel io");
-                esp_lcd_panel_io_i2c_config_t tp_io_cfg = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
-                tp_io_cfg.scl_speed_hz = 400000;
-                if (esp_lcd_new_panel_io_i2c_v2(*bus, &tp_io_cfg, tp_io) != ESP_OK)
-                {
-                    ESP_LOGE(TAG, "Failed to create touch panel io");
-                    return ESP_FAIL;
-                }
-            }
-            const esp_lcd_touch_config_t tp_cfg = {
-                .x_max = BSP_LCD_H_RES,
-                .y_max = BSP_LCD_V_RES,
-                .rst_gpio_num = BSP_TOUCH_GPIO_RST,
-                .int_gpio_num = BSP_TOUCH_GPIO_INT,
-            };
-            return esp_lcd_touch_new_i2c_gt911(*tp_io, &tp_cfg, tp);
-        }
-
-        esp_err_t RobcoDisplayComponent::app_lvgl_init(esp_lcd_panel_handle_t lp, esp_lcd_touch_handle_t tp,
-                                                       lv_display_t **lv_disp, lv_indev_t **lv_touch_indev)
+        esp_err_t RobcoDisplayComponent::app_lvgl_init(esp_lcd_panel_handle_t lp,
+                                                       lv_display_t **lv_disp)
         {
             const lvgl_port_cfg_t lvgl_cfg = {
                 .task_priority = 4,
@@ -162,11 +121,6 @@ namespace esphome
             const lvgl_port_display_rgb_cfg_t rgb_cfg = {
                 .flags = {.bb_mode = true, .avoid_tearing = true}};
             *lv_disp = lvgl_port_add_disp_rgb(&disp_cfg, &rgb_cfg);
-            const lvgl_port_touch_cfg_t touch_cfg = {
-                .disp = *lv_disp,
-                .handle = tp,
-            };
-            *lv_touch_indev = lvgl_port_add_touch(&touch_cfg);
             return ESP_OK;
         }
 
@@ -174,8 +128,7 @@ namespace esphome
         {
             ESP_LOGI(TAG, "Setting up RobcoDisplayComponent");
             ESP_ERROR_CHECK(app_lcd_init(&lcd_panel));
-            ESP_ERROR_CHECK(app_touch_init(&my_bus, &touch_io_handle, &touch_handle));
-            ESP_ERROR_CHECK(app_lvgl_init(lcd_panel, touch_handle, &lvgl_disp, &lvgl_touch_indev));
+            ESP_ERROR_CHECK(app_lvgl_init(lcd_panel, &lvgl_disp));
             const gpio_config_t bk_light = {
                 .pin_bit_mask = (1 << BSP_LCD_GPIO_BK_LIGHT),
                 .mode = GPIO_MODE_OUTPUT,
