@@ -2,6 +2,7 @@
 #include "esphome/core/component.h"
 #include "../pico_io_extension/pico_io_extension.h"
 #include "menu_state.h"
+#include "crt_terminal_renderer.h"
 extern "C"
 {
 #include "bsp.h"
@@ -30,8 +31,8 @@ namespace esphome
             esp_lcd_panel_handle_t lcd_panel = nullptr;
             i2c_master_bus_handle_t my_bus = nullptr;
             lv_display_t *lvgl_disp = nullptr;
-            lv_obj_t *key_label_ = nullptr;
             MenuState menu_state_;
+            CRTTerminalRenderer crt_renderer;
             esp_err_t app_lcd_init(esp_lcd_panel_handle_t *lp);
             esp_err_t app_lvgl_init(esp_lcd_panel_handle_t lp,
                                     lv_display_t **lv_disp);

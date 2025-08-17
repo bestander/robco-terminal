@@ -1,4 +1,5 @@
 #include "robco_display_component.h"
+#include "crt_terminal_renderer.h"
 #include "esphome/core/log.h"
 
 namespace esphome
@@ -170,11 +171,7 @@ namespace esphome
                 {"System Status", MenuEntry::Type::STATUS, {}, {}, "outside temperature"}
             };
             menu_state_.set_menu(menu);
-            lvgl_port_lock(0);
-            key_label_ = lv_label_create(lv_scr_act());
-            lv_label_set_text(key_label_, "Robco Display");
-            lv_obj_align(key_label_, LV_ALIGN_CENTER, 0, 0);
-            lvgl_port_unlock();
+            // No LVGL label, rendering handled by CRTTerminalRenderer
             render_menu();
         }
 
@@ -186,11 +183,15 @@ namespace esphome
         void RobcoDisplayComponent::render_menu()
         {
             lvgl_port_lock(0);
-            if (key_label_)
-            {
-                std::string text = menu_state_.get_display_text();
-                lv_label_set_text(key_label_, text.c_str());
+            std::string text = menu_state_.get_display_text();
+            std::vector<std::string> lines;
+            size_t pos = 0, prev = 0;
+            while ((pos = text.find('\n', prev)) != std::string::npos) {
+                lines.push_back(text.substr(prev, pos - prev));
+                prev = pos + 1;
             }
+            if (prev < text.size()) lines.push_back(text.substr(prev));
+            this->crt_renderer.render(lines, true); // Pass is_menu=true for menu rendering
             lvgl_port_unlock();
         }
 
