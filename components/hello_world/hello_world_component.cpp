@@ -24,6 +24,13 @@ void HelloWorldComponent::on_key_press(uint8_t keycode, uint8_t modifiers) {
         pin21_state = !pin21_state;
         pico_io_ext_->setPin(21, pin21_state);
     }
+    if (key_label_) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "Key: 0x%02X", keycode);
+        lvgl_port_lock(0);
+        lv_label_set_text(key_label_, buf);
+        lvgl_port_unlock();
+    }
 }
 
 void HelloWorldComponent::set_pin(uint8_t pin, bool state) {
@@ -166,10 +173,10 @@ void esphome::hello_world::HelloWorldComponent::setup() {
     ESP_ERROR_CHECK(gpio_config(&bk_light));
     gpio_set_level(BSP_LCD_GPIO_BK_LIGHT, BSP_LCD_BK_LIGHT_ON_LEVEL);
     lvgl_port_lock(0);
-    lv_obj_t *label = lv_label_create(lv_scr_act());
-    lv_label_set_text(label, "Hello World");
-    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-    lvgl_port_unlock();
+    key_label_ = lv_label_create(lv_scr_act());
+    lv_label_set_text(key_label_, "Hello World");
+    lv_obj_align(key_label_, LV_ALIGN_CENTER, 0, 0);
+    lvgl_port_unlock(); 
 }
 
 void esphome::hello_world::HelloWorldComponent::loop() {

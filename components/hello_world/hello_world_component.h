@@ -20,7 +20,6 @@ public:
   void set_pico_io_extension(esphome::pico_io_extension::PicoIOExtension* ext);
   void on_key_press(uint8_t keycode, uint8_t modifiers);
   void set_pin(uint8_t pin, bool state);
-private:
   esphome::pico_io_extension::PicoIOExtension* pico_io_ext_ = nullptr;
   esp_lcd_panel_handle_t lcd_panel = nullptr;
   i2c_master_bus_handle_t my_bus = nullptr;
@@ -34,6 +33,7 @@ private:
                           esp_lcd_touch_handle_t *tp);
   esp_err_t app_lvgl_init(esp_lcd_panel_handle_t lp, esp_lcd_touch_handle_t tp,
                          lv_display_t **lv_disp, lv_indev_t **lv_touch_indev);
+  lv_obj_t *key_label_ = nullptr; // Added member for label
 };
 
 
