@@ -68,6 +68,12 @@ external_components:
       type: local
       path: components
 
-# Initialize the hello_world component
+# Initialize pico_io_extension and hello_world, wiring them together
+pico_io_extension:
+  id: pico_io
+  rx_pin: 17
+  tx_pin: 18
+
 hello_world:
   id: test
+  pico_io_extension: pico_io

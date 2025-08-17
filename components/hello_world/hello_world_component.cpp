@@ -7,6 +7,29 @@ namespace hello_world {
 
 static const char *TAG = "HelloWorldComponent";
 
+void HelloWorldComponent::set_pico_io_extension(esphome::pico_io_extension::PicoIOExtension* ext) {
+    pico_io_ext_ = ext;
+    if (pico_io_ext_) {
+        pico_io_ext_->set_key_press_callback([this](uint8_t keycode, uint8_t modifiers) {
+            this->on_key_press(keycode, modifiers);
+        });
+    }
+}
+
+void HelloWorldComponent::on_key_press(uint8_t keycode, uint8_t modifiers) {
+    ESP_LOGI(TAG, "HelloWorld received key press: code=0x%02X, modifiers=0x%02X", keycode, modifiers);
+    // Example: toggle pin 21 on 'a' (0x04)
+    if (keycode == 0x04 && pico_io_ext_) {
+        static bool pin21_state = false;
+        pin21_state = !pin21_state;
+        pico_io_ext_->setPin(21, pin21_state);
+    }
+}
+
+void HelloWorldComponent::set_pin(uint8_t pin, bool state) {
+    if (pico_io_ext_) pico_io_ext_->setPin(pin, state);
+}
+
 /* LCD settings */
 #define APP_LCD_LVGL_FULL_REFRESH           (0)
 #define APP_LCD_LVGL_DIRECT_MODE            (1)
