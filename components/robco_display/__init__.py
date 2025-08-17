@@ -2,14 +2,14 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 
-hello_world_ns = cg.esphome_ns.namespace('hello_world')
-HelloWorldComponent = hello_world_ns.class_('HelloWorldComponent', cg.Component)
+robco_display_ns = cg.esphome_ns.namespace('robco_display')
+RobcoDisplayComponent = robco_display_ns.class_('RobcoDisplayComponent', cg.Component)
 
 # Import pico_io_extension namespace and class
 from ..pico_io_extension import pico_io_ns, PicoIOExtension
 
 CONFIG_SCHEMA = cv.Schema({
-    cv.GenerateID(): cv.declare_id(HelloWorldComponent),
+    cv.GenerateID(): cv.declare_id(RobcoDisplayComponent),
     cv.Optional("pico_io_extension"): cv.use_id(PicoIOExtension),
 })
 
@@ -21,5 +21,4 @@ def to_code(config):
         cg.add(var.set_pico_io_extension(ext))
     yield cg.register_component(var, config)
 
-# Help ESPHome recognize the external component
-hello_world = HelloWorldComponent
+robco_display = RobcoDisplayComponent

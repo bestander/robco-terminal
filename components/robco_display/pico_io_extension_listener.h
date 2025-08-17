@@ -3,7 +3,7 @@
 #include "../pico_io_extension/pico_io_extension.h"
 
 namespace esphome {
-namespace hello_world {
+namespace robco_display {
 
 class PicoIOExtensionListener {
  public:
@@ -11,5 +11,5 @@ class PicoIOExtensionListener {
 };
 
 
-}  // namespace hello_world
+}  // namespace robco_display
 }  // namespace esphome
