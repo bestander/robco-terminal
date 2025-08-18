@@ -14,7 +14,7 @@ namespace esphome
         public:
             CRTTerminalRenderer();
             void render(const std::vector<std::string> &lines, bool is_menu = false);
-            // Add more methods for CRT effects later
+            void init();
         };
     } // namespace robco_display
 } // namespace esphome
