@@ -72,21 +72,13 @@ namespace esphome
                 "Welcome to RobCo Termlink",
                 "Have a Nice Day!",
                 "",
-                "> Press any key to continue..."
-            };
+                "> Press any key to continue..."};
             menu_state_.set_boot_messages(boot_msgs);
             // Menu structure
             std::vector<MenuEntry> menu = {
-                {"Security", MenuEntry::Type::SUBMENU, {
-                    {"Vault Door Control", MenuEntry::Type::ACTION, {}, {}, ""}
-                }, {}, ""},
-                {"Overseer Logs", MenuEntry::Type::SUBMENU, {
-                    {"List Entries", MenuEntry::Type::LOGS, {}, {}, ""},
-                    {"Add Entry", MenuEntry::Type::ACTION, {}, {}, ""},
-                    {"Remove Entry", MenuEntry::Type::ACTION, {}, {}, ""}
-                }, {}, ""},
-                {"System Status", MenuEntry::Type::STATUS, {}, {}, "outside temperature"}
-            };
+                {"Security", MenuEntry::Type::SUBMENU, {{"Vault Door Control", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
+                {"Overseer Logs", MenuEntry::Type::SUBMENU, {{"List Entries", MenuEntry::Type::LOGS, {}, {}, ""}, {"Add Entry", MenuEntry::Type::ACTION, {}, {}, ""}, {"Remove Entry", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
+                {"System Status", MenuEntry::Type::STATUS, {}, {}, "outside temperature"}};
             menu_state_.set_menu(menu);
             render_menu();
         }
@@ -96,17 +88,51 @@ namespace esphome
             // No periodic logic needed for this example
         }
 
+        // Per-line cache for partial redraw
+        static std::vector<std::string> cached_lines;
         void RobcoDisplayComponent::render_menu()
         {
+            size_t kNumLines = this->crt_renderer.get_num_lines();
             std::string text = menu_state_.get_display_text();
             std::vector<std::string> lines;
             size_t pos = 0, prev = 0;
-            while ((pos = text.find('\n', prev)) != std::string::npos) {
+            while ((pos = text.find('\n', prev)) != std::string::npos)
+            {
                 lines.push_back(text.substr(prev, pos - prev));
                 prev = pos + 1;
             }
-            if (prev < text.size()) lines.push_back(text.substr(prev));
-            this->crt_renderer.render(lines, true); // Pass is_menu=true for menu rendering
+            if (prev < text.size())
+                lines.push_back(text.substr(prev));
+
+            // Pad or trim lines to fixed length
+            if (lines.size() < kNumLines)
+                lines.resize(kNumLines, "");
+            else if (lines.size() > kNumLines)
+                lines.resize(kNumLines);
+
+            // Ensure cache is fixed length
+            if (cached_lines.size() != kNumLines)
+                cached_lines.resize(kNumLines, "");
+
+            this->crt_renderer.lock();
+
+            // Update or clear all lines
+            for (size_t i = 0; i < kNumLines; ++i)
+            {
+                if (lines[i] != cached_lines[i])
+                {
+                    this->crt_renderer.render_line(lines[i], i, true);
+                    cached_lines[i] = lines[i];
+                }
+                else if (lines[i].empty() && !cached_lines[i].empty())
+                {
+                    // Clear line if it was previously non-empty
+                    this->crt_renderer.render_line("", i, true);
+                    cached_lines[i] = "";
+                }
+            }
+
+            this->crt_renderer.unlock();
         }
 
     } // namespace robco_display
