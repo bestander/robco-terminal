@@ -80,6 +80,10 @@ int MenuState::get_selected_index() const {
     return selected_index_;
 }
 
+void MenuState::set_header(const std::vector<std::string>& header) {
+    header_lines_ = header;
+}
+
 std::string MenuState::get_display_text() const {
     if (!boot_complete_) {
         std::string text;
@@ -87,6 +91,10 @@ std::string MenuState::get_display_text() const {
         return text;
     }
     // Find current menu
+    std::string header_text;
+    for (const auto& header : header_lines_) {
+        header_text += header + "\n";
+    }
     const std::vector<MenuEntry>* current_menu = &menu_;
     for (size_t i = 0; i < menu_stack_.size(); ++i) {
         int idx = menu_stack_[i];
@@ -98,7 +106,7 @@ std::string MenuState::get_display_text() const {
     for (size_t i = 0; i < current_menu->size(); ++i) {
         text += (i == selected_index_ ? "> " : "  ") + (*current_menu)[i].title + "\n";
     }
-    return text;
+    return header_text + text;
 }
 
 void MenuState::add_log(const std::string& entry) {

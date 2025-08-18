@@ -34,6 +34,15 @@ namespace esphome
 
         void RobcoDisplayComponent::setup()
         {
+            // Header lines to display across all menus
+            std::vector<std::string> header_lines = {
+                "        ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM",
+                "           COPYRIGHT 2075-2077 ROBCO INDUSTRIES",
+                "",
+                "                        -Server 1-",
+                "Welcome, Overseer.",
+                "------------------"};
+            menu_state_.set_header(header_lines);
             ESP_LOGI(TAG, "Setting up RobcoDisplayComponent");
             crt_renderer.init();
             const gpio_config_t bk_light = {
@@ -70,12 +79,6 @@ namespace esphome
             menu_state_.set_boot_messages(boot_msgs);
             // Menu structure
             std::vector<MenuEntry> menu = {
-                {"        ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"           COPYRIGHT 2075-2077 ROBCO INDUSTRIES", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"                        -Server 1-", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"Welcome, Overseer.", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"--------------------", MenuEntry::Type::STATIC, {}, {}, ""},
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},
                 {"Vault Door Control", MenuEntry::Type::SUBMENU, {
                     {"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""},

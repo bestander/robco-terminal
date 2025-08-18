@@ -17,6 +17,7 @@ struct MenuEntry {
 class MenuState {
 public:
     MenuState();
+    void set_header(const std::vector<std::string>& header);
     void set_boot_messages(const std::vector<std::string>& messages);
     void set_menu(const std::vector<MenuEntry>& menu);
     void on_key_press(uint8_t keycode);
@@ -31,6 +32,7 @@ public:
     void set_status(const std::string& value);
     std::string get_status() const;
 private:
+    std::vector<std::string> header_lines_;
     std::vector<std::string> boot_messages_;
     bool boot_complete_ = false;
     std::vector<MenuEntry> menu_;
