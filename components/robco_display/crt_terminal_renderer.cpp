@@ -16,7 +16,7 @@
 #define APP_LCD_DRAW_BUFF_HEIGHT (100)
 #define APP_LCD_RGB_BUFFER_NUMS (2)
 #define APP_LCD_RGB_BOUNCE_BUFFER_HEIGHT (10)
-// ...existing code...
+
 #include "crt_terminal_renderer.h"
 // note, removed .static_bitmap field from the structure to compile
 #include "FSEX302.c"
@@ -25,13 +25,15 @@ namespace esphome
 {
     namespace robco_display
     {
-    CRTTerminalRenderer::CRTTerminalRenderer() {}
+        CRTTerminalRenderer::CRTTerminalRenderer() {}
 
-       void CRTTerminalRenderer::lock() {
+        void CRTTerminalRenderer::lock()
+        {
             lvgl_port_lock(0);
         }
 
-        void CRTTerminalRenderer::unlock() {
+        void CRTTerminalRenderer::unlock()
+        {
             lvgl_port_unlock();
         }
 
@@ -115,14 +117,14 @@ namespace esphome
             lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
             lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
             lvgl_port_unlock();
-
         }
 
         void CRTTerminalRenderer::render_line(const std::string &line, size_t index, bool is_menu)
         {
             lv_obj_t *scr = lv_scr_act();
             // Set screen background only once
-            if (!this->screen_bg_set_) {
+            if (!this->screen_bg_set_)
+            {
                 lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
                 lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
                 this->screen_bg_set_ = true;
@@ -132,15 +134,19 @@ namespace esphome
             int top_margin = 15;
             int y = top_margin + index * 22;
             // Ensure line_labels is large enough
-            if (this->line_labels.size() <= index) {
+            if (this->line_labels.size() <= index)
+            {
                 this->line_labels.resize(index + 1, nullptr);
             }
             // If label exists, update text; else create new label
-            if (this->line_labels[index]) {
+            if (this->line_labels[index])
+            {
                 lv_label_set_text(this->line_labels[index], line.c_str());
                 lv_obj_set_pos(this->line_labels[index], left_margin, y);
                 lv_obj_clear_flag(this->line_labels[index], LV_OBJ_FLAG_HIDDEN);
-            } else {
+            }
+            else
+            {
                 lv_obj_t *label = lv_label_create(scr);
                 lv_obj_add_style(label, &this->label_style, 0);
                 lv_label_set_text(label, line.c_str());

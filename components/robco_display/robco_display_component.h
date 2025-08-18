@@ -5,7 +5,6 @@
 #include "crt_terminal_renderer.h"
 extern "C"
 {
-#include "bsp.h"
 #include "esp_lvgl_port.h"
 #include "driver/i2c_master.h"
 #include "lv_examples.h"

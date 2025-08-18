@@ -6,6 +6,7 @@
 extern "C"
 {
 #include "lvgl.h"
+#include "bsp.h"
 }
 
 
@@ -23,7 +24,7 @@ namespace esphome
             void lock();
             void unlock();
             size_t get_num_lines() const {
-                constexpr size_t display_height = 480;
+                constexpr size_t display_height = BSP_LCD_V_RES;
                 constexpr size_t char_height = 24;
                 return display_height / char_height;
             }
