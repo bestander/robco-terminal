@@ -1,4 +1,6 @@
 #include "crt_terminal_renderer.h"
+// note, removed .static_bitmap field from the structure to compile
+#include "FSEX302.c"
 extern "C"
 {
 #include "lvgl.h"
@@ -20,7 +22,8 @@ namespace esphome
             static lv_style_t style;
             lv_style_init(&style);
             lv_style_set_text_color(&style, lv_color_make(0, 255, 0));
-            lv_style_set_text_font(&style, &lv_font_montserrat_14);
+            // Use the FSEX302 font (fixedsys)
+            lv_style_set_text_font(&style, &fixedsys);
             int left_margin = is_menu ? 50 : 10;
             int top_margin = is_menu ? 80 : 0;
             int y = top_margin;
