@@ -25,14 +25,33 @@ void MenuState::on_key_press(uint8_t keycode) {
     }
     int menu_size = current_menu->size();
     if (menu_size == 0) return;
+    auto is_navigable = [&](int idx) {
+        return (*current_menu)[idx].type != MenuEntry::Type::STATIC;
+    };
     if (keycode == 0x52) { // Up
-        selected_index_ = (selected_index_ - 1 + menu_size) % menu_size;
+        int next = selected_index_;
+        do {
+            next = (next - 1 + menu_size) % menu_size;
+        } while (!is_navigable(next) && next != selected_index_);
+        if (is_navigable(next)) selected_index_ = next;
     } else if (keycode == 0x51) { // Down
-        selected_index_ = (selected_index_ + 1) % menu_size;
+        int next = selected_index_;
+        do {
+            next = (next + 1) % menu_size;
+        } while (!is_navigable(next) && next != selected_index_);
+        if (is_navigable(next)) selected_index_ = next;
     } else if (keycode == 0x28) { // Enter
         if ((*current_menu)[selected_index_].type == MenuEntry::Type::SUBMENU) {
             menu_stack_.push_back(selected_index_);
             selected_index_ = 0;
+            // Skip to first navigable if needed
+            if (!is_navigable(selected_index_)) {
+                int next = selected_index_;
+                do {
+                    next = (next + 1) % current_menu->size();
+                } while (!is_navigable(next) && next != selected_index_);
+                if (is_navigable(next)) selected_index_ = next;
+            }
         }
     } else if (keycode == 0x29) { // Escape
         if (!menu_stack_.empty()) {
@@ -73,7 +92,7 @@ std::string MenuState::get_display_text() const {
             current_menu = &(*current_menu)[idx].subitems;
         }
     }
-    std::string text = "MENU:\n";
+    std::string text = "";
     for (size_t i = 0; i < current_menu->size(); ++i) {
         text += (i == selected_index_ ? "> " : "  ") + (*current_menu)[i].title + "\n";
     }

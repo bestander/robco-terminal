@@ -128,8 +128,8 @@ namespace esphome
                 this->screen_bg_set_ = true;
             }
             // Use pre-initialized style for labels
-            int left_margin = is_menu ? 50 : 10;
-            int top_margin = is_menu ? 80 : 0;
+            int left_margin = 10;
+            int top_margin = 10;
             int y = top_margin + index * 22;
             // Ensure line_labels is large enough
             if (this->line_labels.size() <= index) {

@@ -7,7 +7,7 @@
 
 struct MenuEntry {
     std::string title;
-    enum class Type { SUBMENU, ACTION, STATUS, LOGS } type;
+    enum class Type { STATIC, SUBMENU, ACTION, STATUS, LOGS } type;
     std::vector<MenuEntry> subitems;
     std::vector<std::string> logs;
     std::string status_value;

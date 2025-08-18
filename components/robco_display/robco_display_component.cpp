@@ -56,13 +56,7 @@ namespace esphome
                 "Boot Sequence Started",
                 "Loading System Drivers...",
                 "Checking Memory Banks...",
-                "Memory Test: OK",
-                "8MB PSRAM Detected",
-                "16MB Flash Storage Available",
-                "",
                 "Network Interface: ONLINE",
-                "MQTT Client: CONNECTING...",
-                "Home Assistant Integration: READY",
                 "Security Protocols: ACTIVE",
                 "",
                 "System Status: NOMINAL",
@@ -76,9 +70,31 @@ namespace esphome
             menu_state_.set_boot_messages(boot_msgs);
             // Menu structure
             std::vector<MenuEntry> menu = {
-                {"Security", MenuEntry::Type::SUBMENU, {{"Vault Door Control", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
-                {"Overseer Logs", MenuEntry::Type::SUBMENU, {{"List Entries", MenuEntry::Type::LOGS, {}, {}, ""}, {"Add Entry", MenuEntry::Type::ACTION, {}, {}, ""}, {"Remove Entry", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
-                {"System Status", MenuEntry::Type::STATUS, {}, {}, "outside temperature"}};
+                {"ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"COPYRIGHT 2075-2077 ROBCO INDUSTRIES", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"                     -Server 1-", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"                      Vault 101", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"                     Overseer Office", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"Vault Door Control", MenuEntry::Type::SUBMENU, {
+                    {"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""},
+                    {"Close Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}
+                }, {}, ""},
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"System Status", MenuEntry::Type::SUBMENU, {
+                    {"Power: Stable", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"Door: Closed", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"Security: Nominal", MenuEntry::Type::STATIC, {}, {}, ""}
+                }, {}, ""},
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"Overseer Logs", MenuEntry::Type::SUBMENU, {
+                    {"Read Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
+                    {"Add Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
+                    {"Remove Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}
+                }, {}, ""},
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+            };
             menu_state_.set_menu(menu);
             render_menu();
         }
