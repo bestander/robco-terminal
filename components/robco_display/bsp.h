@@ -39,15 +39,15 @@
 #define BSP_LCD_PANEL_TIMING()         \
     (esp_lcd_rgb_timing_t)             \
     {                                  \
-        .pclk_hz = 16000000,           \
+        .pclk_hz = 12000000,           \
         .h_res = BSP_LCD_H_RES,        \
         .v_res = BSP_LCD_V_RES,        \
         .hsync_pulse_width = 30,       \
         .hsync_back_porch = 16,        \
         .hsync_front_porch = 20,       \
-        .vsync_pulse_width = 13,       \
-        .vsync_back_porch = 10,        \
-        .vsync_front_porch = 22,       \
+        .vsync_pulse_width = 20,       \
+        .vsync_back_porch = 20,        \
+        .vsync_front_porch = 30,       \
         .flags = { .pclk_active_neg = true } \
     }
 

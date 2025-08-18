@@ -97,7 +97,7 @@ namespace esphome
                     .buff_spiram = false,
                     .sw_rotate = false,
                     .swap_bytes = false,
-                    .full_refresh = false,
+                    .full_refresh = true,
                     .direct_mode = true},
             };
             const lvgl_port_display_rgb_cfg_t rgb_cfg = {
