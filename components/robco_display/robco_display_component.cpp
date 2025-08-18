@@ -70,12 +70,12 @@ namespace esphome
             menu_state_.set_boot_messages(boot_msgs);
             // Menu structure
             std::vector<MenuEntry> menu = {
-                {"ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"COPYRIGHT 2075-2077 ROBCO INDUSTRIES", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"        ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"           COPYRIGHT 2075-2077 ROBCO INDUSTRIES", MenuEntry::Type::STATIC, {}, {}, ""},
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"                     -Server 1-", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"                      Vault 101", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"                     Overseer Office", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"                        -Server 1-", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"Welcome, Overseer.", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"--------------------", MenuEntry::Type::STATIC, {}, {}, ""},
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},
                 {"Vault Door Control", MenuEntry::Type::SUBMENU, {
                     {"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""},

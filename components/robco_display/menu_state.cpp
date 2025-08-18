@@ -12,8 +12,18 @@ void MenuState::set_menu(const std::vector<MenuEntry>& menu) {
 }
 
 void MenuState::on_key_press(uint8_t keycode) {
+    auto set_first_navigable = [&](const std::vector<MenuEntry>* menu) {
+        for (size_t i = 0; i < menu->size(); ++i) {
+            if ((*menu)[i].type != MenuEntry::Type::STATIC) {
+                selected_index_ = i;
+                return;
+            }
+        }
+        selected_index_ = 0;
+    };
     if (!boot_complete_) {
         boot_complete_ = true;
+        set_first_navigable(&menu_);
         return;
     }
     std::vector<MenuEntry>* current_menu = &menu_;
@@ -43,15 +53,7 @@ void MenuState::on_key_press(uint8_t keycode) {
     } else if (keycode == 0x28) { // Enter
         if ((*current_menu)[selected_index_].type == MenuEntry::Type::SUBMENU) {
             menu_stack_.push_back(selected_index_);
-            selected_index_ = 0;
-            // Skip to first navigable if needed
-            if (!is_navigable(selected_index_)) {
-                int next = selected_index_;
-                do {
-                    next = (next + 1) % current_menu->size();
-                } while (!is_navigable(next) && next != selected_index_);
-                if (is_navigable(next)) selected_index_ = next;
-            }
+            set_first_navigable(&(*current_menu)[selected_index_].subitems);
         }
     } else if (keycode == 0x29) { // Escape
         if (!menu_stack_.empty()) {
