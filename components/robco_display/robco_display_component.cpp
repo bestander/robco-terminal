@@ -82,18 +82,23 @@ namespace esphome
                     {"", MenuEntry::Type::STATIC, {}, {}, ""},
                     {"Vault Door Control", MenuEntry::Type::SUBMENU, {
                         {"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""},
+                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
                         {"Close Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}
                     }, {}, ""},
                     {"", MenuEntry::Type::STATIC, {}, {}, ""},
                     {"System Status", MenuEntry::Type::SUBMENU, {
                         {"Power: Stable", MenuEntry::Type::STATIC, {}, {}, ""},
-                        {"Door: Unknown", MenuEntry::Type::STATUS, {}, {}, vault_door_state_},
+                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                        {"Door", MenuEntry::Type::STATUS, {}, {}, vault_door_state_},
+                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
                         {"Security: Nominal", MenuEntry::Type::STATIC, {}, {}, ""}
                     }, {}, ""},
                     {"", MenuEntry::Type::STATIC, {}, {}, ""},
                     {"Overseer Logs", MenuEntry::Type::SUBMENU, {
                         {"Read Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
+                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
                         {"Add Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
+                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
                         {"Remove Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}
                     }, {}, ""},
                     {"", MenuEntry::Type::STATIC, {}, {}, ""},

@@ -12,14 +12,17 @@ void MenuState::set_menu(const std::vector<MenuEntry>& menu) {
 }
 
 void MenuState::on_key_press(uint8_t keycode) {
+    auto is_navigable_type = [](MenuEntry::Type type) {
+        return type == MenuEntry::Type::ACTION || type == MenuEntry::Type::SUBMENU;
+    };
     auto set_first_navigable = [&](const std::vector<MenuEntry>* menu) {
         for (size_t i = 0; i < menu->size(); ++i) {
-            if ((*menu)[i].type != MenuEntry::Type::STATIC) {
+            if (is_navigable_type((*menu)[i].type)) {
                 selected_index_ = i;
                 return;
             }
         }
-        selected_index_ = 0;
+        selected_index_ = -11;
     };
     if (!boot_complete_) {
         boot_complete_ = true;
@@ -36,7 +39,7 @@ void MenuState::on_key_press(uint8_t keycode) {
     int menu_size = current_menu->size();
     if (menu_size == 0) return;
     auto is_navigable = [&](int idx) {
-        return (*current_menu)[idx].type != MenuEntry::Type::STATIC;
+        return is_navigable_type((*current_menu)[idx].type);
     };
     if (keycode == 0x52) { // Up
         int next = selected_index_;
