@@ -48,6 +48,12 @@ wifi:
   output_power: 20dB
   reboot_timeout: 0s
 
+mqtt:
+  broker: !secret mqtt_broker
+  port: 1883
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+
 captive_portal:
 
 ota:
@@ -72,3 +78,13 @@ pico_io_extension:
 robco_display:
   id: test
   pico_io_extension: pico_io
+
+text_sensor:
+  - platform: mqtt_subscribe
+    name: "Vault Door State"
+    id: vault_door_state
+    topic: garage/state
+    on_value:
+      then:
+        - lambda: |-
+            id(test).set_vault_door_state(x);

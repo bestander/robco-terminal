@@ -24,6 +24,7 @@ namespace esphome
             void set_pico_io_extension(esphome::pico_io_extension::PicoIOExtension *ext);
             void on_key_press(uint8_t keycode, uint8_t modifiers);
             void set_pin(uint8_t pin, bool state);
+            void set_vault_door_state(const std::string &state);
 
         private:
             esphome::pico_io_extension::PicoIOExtension *pico_io_ext_ = nullptr;
@@ -36,6 +37,8 @@ namespace esphome
             esp_err_t app_lvgl_init(esp_lcd_panel_handle_t lp,
                                     lv_display_t **lv_disp);
             void render_menu();
+            std::string vault_door_state_ = "Unknown";
+            std::vector<MenuEntry> menu_;
         };
     } // namespace robco_display
 } // namespace esphome

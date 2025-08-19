@@ -31,6 +31,7 @@ public:
     const std::vector<std::string>& get_logs() const;
     void set_status(const std::string& value);
     std::string get_status() const;
+    std::vector<MenuEntry>& get_menu();
 private:
     std::vector<std::string> header_lines_;
     std::vector<std::string> boot_messages_;

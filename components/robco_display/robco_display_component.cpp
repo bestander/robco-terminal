@@ -78,27 +78,64 @@ namespace esphome
                 "> Press any key to continue..."};
             menu_state_.set_boot_messages(boot_msgs);
             // Menu structure
-            std::vector<MenuEntry> menu = {
-                {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"Vault Door Control", MenuEntry::Type::SUBMENU, {
-                    {"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""},
-                    {"Close Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}
-                }, {}, ""},
-                {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"System Status", MenuEntry::Type::SUBMENU, {
-                    {"Power: Stable", MenuEntry::Type::STATIC, {}, {}, ""},
-                    {"Door: Closed", MenuEntry::Type::STATIC, {}, {}, ""},
-                    {"Security: Nominal", MenuEntry::Type::STATIC, {}, {}, ""}
-                }, {}, ""},
-                {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"Overseer Logs", MenuEntry::Type::SUBMENU, {
-                    {"Read Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
-                    {"Add Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
-                    {"Remove Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}
-                }, {}, ""},
-                {"", MenuEntry::Type::STATIC, {}, {}, ""},
-            };
-            menu_state_.set_menu(menu);
+                menu_ = {
+                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"Vault Door Control", MenuEntry::Type::SUBMENU, {
+                        {"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""},
+                        {"Close Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}
+                    }, {}, ""},
+                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"System Status", MenuEntry::Type::SUBMENU, {
+                        {"Power: Stable", MenuEntry::Type::STATIC, {}, {}, ""},
+                        {"Door: Unknown", MenuEntry::Type::STATUS, {}, {}, vault_door_state_},
+                        {"Security: Nominal", MenuEntry::Type::STATIC, {}, {}, ""}
+                    }, {}, ""},
+                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"Overseer Logs", MenuEntry::Type::SUBMENU, {
+                        {"Read Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
+                        {"Add Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
+                        {"Remove Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}
+                    }, {}, ""},
+                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                };
+                menu_state_.set_menu(menu_);
+            render_menu();
+        }
+        void RobcoDisplayComponent::set_vault_door_state(const std::string &state)
+        {
+            ESP_LOGI(TAG, "MQTT update received: vault_door_state='%s'", state.c_str());
+            std::string formatted_state = state;
+            if (state == "opened") {
+                formatted_state = "Opened";
+            } else if (state == "closed") {
+                formatted_state = "Closed";
+            }
+            vault_door_state_ = formatted_state;
+            bool found = false;
+            for (auto &entry : menu_)
+            {
+                if (entry.title == "System Status" && !entry.subitems.empty())
+                {
+                    for (auto &sub : entry.subitems)
+                    {
+                        if (sub.title.find("Door") != std::string::npos)
+                        {
+                            ESP_LOGI(TAG, "Updating menu entry '%s' with state '%s'", sub.title.c_str(), state.c_str());
+                            // Replace 'Unknown' with 'Closed' or 'Opened' in the title if present
+                            if (sub.title.find("Unknown") != std::string::npos)
+                            {
+                                sub.title = "Door";
+                            }
+                            sub.status_value = formatted_state;
+                            found = true;
+                        }
+                    }
+                }
+            }
+            if (!found) {
+                ESP_LOGW(TAG, "Could not find 'Door' entry in System Status menu to update");
+            }
+            menu_state_.set_menu(menu_);
             render_menu();
         }
 

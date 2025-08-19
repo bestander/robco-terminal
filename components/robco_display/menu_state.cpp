@@ -104,7 +104,11 @@ std::string MenuState::get_display_text() const {
     }
     std::string text = "";
     for (size_t i = 0; i < current_menu->size(); ++i) {
-        text += (i == selected_index_ ? "> " : "  ") + (*current_menu)[i].title + "\n";
+        std::string line = (i == selected_index_ ? "> " : "  ") + (*current_menu)[i].title;
+        if ((*current_menu)[i].type == MenuEntry::Type::STATUS && !(*current_menu)[i].status_value.empty()) {
+            line += ": " + (*current_menu)[i].status_value;
+        }
+        text += line + "\n";
     }
     return header_text + text;
 }
