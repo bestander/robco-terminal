@@ -7,10 +7,13 @@ RobcoDisplayComponent = robco_display_ns.class_('RobcoDisplayComponent', cg.Comp
 
 # Import pico_io_extension namespace and class
 from ..pico_io_extension import pico_io_ns, PicoIOExtension
+from esphome.components import switch
 
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(RobcoDisplayComponent),
     cv.Optional("pico_io_extension"): cv.use_id(PicoIOExtension),
+    cv.Optional("open_vault_door_switch"): cv.use_id(switch.Switch),
+    cv.Optional("close_vault_door_switch"): cv.use_id(switch.Switch),
 })
 
 def to_code(config):
@@ -19,6 +22,12 @@ def to_code(config):
     if "pico_io_extension" in config:
         ext = yield cg.get_variable(config["pico_io_extension"])
         cg.add(var.set_pico_io_extension(ext))
+    if "open_vault_door_switch" in config:
+        sw = yield cg.get_variable(config["open_vault_door_switch"])
+        cg.add(var.set_open_vault_door_switch(sw))
+    if "close_vault_door_switch" in config:
+        sw = yield cg.get_variable(config["close_vault_door_switch"])
+        cg.add(var.set_close_vault_door_switch(sw))
     yield cg.register_component(var, config)
 
 robco_display = RobcoDisplayComponent

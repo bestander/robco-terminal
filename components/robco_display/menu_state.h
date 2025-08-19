@@ -32,6 +32,7 @@ public:
     void set_status(const std::string& value);
     std::string get_status() const;
     std::vector<MenuEntry>& get_menu();
+    const std::vector<int>& get_menu_stack() const { return menu_stack_; }
 private:
     std::vector<std::string> header_lines_;
     std::vector<std::string> boot_messages_;

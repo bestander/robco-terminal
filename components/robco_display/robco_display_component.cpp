@@ -22,6 +22,27 @@ namespace esphome
         void RobcoDisplayComponent::on_key_press(uint8_t keycode, uint8_t modifiers)
         {
             ESP_LOGI(TAG, "RobcoDisplay received key press: code=0x%02X, modifiers=0x%02X", keycode, modifiers);
+            // Save previous menu stack and selected index
+            int prev_selected = menu_state_.get_selected_index();
+            std::vector<MenuEntry>* current_menu = &menu_;
+            const auto& menu_stack = menu_state_.get_menu_stack();
+            for (size_t i = 0; i < menu_stack.size(); ++i) {
+                int idx = menu_stack[i];
+                if (idx >= 0 && idx < current_menu->size()) {
+                    current_menu = &(*current_menu)[idx].subitems;
+                }
+            }
+            // Check if action is triggered
+            if (keycode == 0x28 && prev_selected >= 0 && prev_selected < current_menu->size()) { // Enter
+                const auto& entry = (*current_menu)[prev_selected];
+                if (entry.title == "Open Vault Door" && open_vault_door_switch_) {
+                    ESP_LOGI(TAG, "Turning on open_vault_door_switch");
+                    open_vault_door_switch_->turn_on();
+                } else if (entry.title == "Close Vault Door" && close_vault_door_switch_) {
+                    ESP_LOGI(TAG, "Turning on close_vault_door_switch");
+                    close_vault_door_switch_->turn_on();
+                }
+            }
             menu_state_.on_key_press(keycode);
             render_menu();
         }
