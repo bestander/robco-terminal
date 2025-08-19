@@ -14,6 +14,8 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Optional("pico_io_extension"): cv.use_id(PicoIOExtension),
     cv.Optional("open_vault_door_switch"): cv.use_id(switch.Switch),
     cv.Optional("close_vault_door_switch"): cv.use_id(switch.Switch),
+    cv.Optional("red_light_pin", default=17): cv.int_,
+    cv.Optional("green_light_pin", default=21): cv.int_,
 })
 
 def to_code(config):
@@ -28,6 +30,8 @@ def to_code(config):
     if "close_vault_door_switch" in config:
         sw = yield cg.get_variable(config["close_vault_door_switch"])
         cg.add(var.set_close_vault_door_switch(sw))
+    cg.add(var.set_red_light_pin(config.get("red_light_pin", 17)))
+    cg.add(var.set_green_light_pin(config.get("green_light_pin", 21)))
     yield cg.register_component(var, config)
 
 robco_display = RobcoDisplayComponent

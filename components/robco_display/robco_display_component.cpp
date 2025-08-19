@@ -1,6 +1,7 @@
 #include "robco_display_component.h"
 #include "crt_terminal_renderer.h"
 #include "esphome/core/log.h"
+#include "esp_timer.h"
 
 namespace esphome
 {
@@ -19,28 +20,50 @@ namespace esphome
             }
         }
 
+        // Helper to get current time in milliseconds (replace with ESP-IDF API if needed)
+        uint32_t RobcoDisplayComponent::get_millis()
+        {
+            return esp_timer_get_time() / 1000;
+        }
+
         void RobcoDisplayComponent::on_key_press(uint8_t keycode, uint8_t modifiers)
         {
             ESP_LOGI(TAG, "RobcoDisplay received key press: code=0x%02X, modifiers=0x%02X", keycode, modifiers);
             // Save previous menu stack and selected index
             int prev_selected = menu_state_.get_selected_index();
-            std::vector<MenuEntry>* current_menu = &menu_;
-            const auto& menu_stack = menu_state_.get_menu_stack();
-            for (size_t i = 0; i < menu_stack.size(); ++i) {
+            std::vector<MenuEntry> *current_menu = &menu_;
+            const auto &menu_stack = menu_state_.get_menu_stack();
+            for (size_t i = 0; i < menu_stack.size(); ++i)
+            {
                 int idx = menu_stack[i];
-                if (idx >= 0 && idx < current_menu->size()) {
+                if (idx >= 0 && idx < current_menu->size())
+                {
                     current_menu = &(*current_menu)[idx].subitems;
                 }
             }
             // Check if action is triggered
-            if (keycode == 0x28 && prev_selected >= 0 && prev_selected < current_menu->size()) { // Enter
-                const auto& entry = (*current_menu)[prev_selected];
-                if (entry.title == "Open Vault Door" && open_vault_door_switch_) {
+            if (keycode == 0x28 && prev_selected >= 0 && prev_selected < current_menu->size())
+            { // Enter
+                const auto &entry = (*current_menu)[prev_selected];
+                if (entry.title == "Open Vault Door" && open_vault_door_switch_)
+                {
                     ESP_LOGI(TAG, "Turning on open_vault_door_switch");
                     open_vault_door_switch_->turn_on();
-                } else if (entry.title == "Close Vault Door" && close_vault_door_switch_) {
+                    blink_active_ = green_light_pin_;
+                    blink_start_ms_ = get_millis();
+                    last_blink_ms_ = get_millis();
+                    led_state_ = false;
+                    set_pin(blink_active_, 0);
+                }
+                else if (entry.title == "Close Vault Door" && close_vault_door_switch_)
+                {
                     ESP_LOGI(TAG, "Turning on close_vault_door_switch");
                     close_vault_door_switch_->turn_on();
+                    blink_active_ = red_light_pin_;
+                    blink_start_ms_ = get_millis();
+                    last_blink_ms_ = get_millis();
+                    led_state_ = false;
+                    set_pin(blink_active_, 0);
                 }
             }
             menu_state_.on_key_press(keycode);
@@ -99,41 +122,28 @@ namespace esphome
                 "> Press any key to continue..."};
             menu_state_.set_boot_messages(boot_msgs);
             // Menu structure
-                menu_ = {
-                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                    {"Vault Door Control", MenuEntry::Type::SUBMENU, {
-                        {"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""},
-                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                        {"Close Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}
-                    }, {}, ""},
-                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                    {"System Status", MenuEntry::Type::SUBMENU, {
-                        {"Power: Stable", MenuEntry::Type::STATIC, {}, {}, ""},
-                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                        {"Door", MenuEntry::Type::STATUS, {}, {}, vault_door_state_},
-                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                        {"Security: Nominal", MenuEntry::Type::STATIC, {}, {}, ""}
-                    }, {}, ""},
-                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                    {"Overseer Logs", MenuEntry::Type::SUBMENU, {
-                        {"Read Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
-                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                        {"Add Log Entry", MenuEntry::Type::ACTION, {}, {}, ""},
-                        {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                        {"Remove Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}
-                    }, {}, ""},
-                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                };
-                menu_state_.set_menu(menu_);
+            menu_ = {
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"Vault Door Control", MenuEntry::Type::SUBMENU, {{"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Close Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"System Status", MenuEntry::Type::SUBMENU, {{"Power: Stable", MenuEntry::Type::STATIC, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Door", MenuEntry::Type::STATUS, {}, {}, vault_door_state_}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Security: Nominal", MenuEntry::Type::STATIC, {}, {}, ""}}, {}, ""},
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                {"Overseer Logs", MenuEntry::Type::SUBMENU, {{"Read Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Add Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Remove Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
+                {"", MenuEntry::Type::STATIC, {}, {}, ""},
+            };
+            menu_state_.set_menu(menu_);
             render_menu();
         }
         void RobcoDisplayComponent::set_vault_door_state(const std::string &state)
         {
             ESP_LOGI(TAG, "MQTT update received: vault_door_state='%s'", state.c_str());
             std::string formatted_state = state;
-            if (state == "opened") {
+            if (state == "opened")
+            {
                 formatted_state = "Opened";
-            } else if (state == "closed") {
+            }
+            else if (state == "closed")
+            {
                 formatted_state = "Closed";
             }
             vault_door_state_ = formatted_state;
@@ -158,7 +168,8 @@ namespace esphome
                     }
                 }
             }
-            if (!found) {
+            if (!found)
+            {
                 ESP_LOGW(TAG, "Could not find 'Door' entry in System Status menu to update");
             }
             menu_state_.set_menu(menu_);
@@ -167,7 +178,27 @@ namespace esphome
 
         void RobcoDisplayComponent::loop()
         {
-            // No periodic logic needed for this example
+            handle_blink();
+        }
+
+        void RobcoDisplayComponent::handle_blink()
+        {
+            // Handle LED blink on door close
+            if (blink_active_ > 0)
+            {
+                uint32_t now = get_millis();
+                if (now - blink_start_ms_ >= 5000)
+                {
+                    set_pin(blink_active_, 0);
+                    blink_active_ = 0;
+                }
+                else if (now - last_blink_ms_ >= 500)
+                {
+                    led_state_ = !led_state_;
+                    set_pin(blink_active_, led_state_ ? 1 : 0);
+                    last_blink_ms_ = now;
+                }
+            }
         }
 
         // Per-line cache for partial redraw

@@ -21,16 +21,18 @@ namespace esphome
         class RobcoDisplayComponent : public esphome::Component
         {
         public:
-            void setup() override;
-            void loop() override;
-            void set_pico_io_extension(esphome::pico_io_extension::PicoIOExtension *ext);
-            void on_key_press(uint8_t keycode, uint8_t modifiers);
-            void set_pin(uint8_t pin, bool state);
-            void set_vault_door_state(const std::string &state);
-            void set_open_vault_door_switch(esphome::switch_::Switch *sw) { open_vault_door_switch_ = sw; }
-            void set_close_vault_door_switch(esphome::switch_::Switch *sw) { close_vault_door_switch_ = sw; }
+                void setup() override;
+                void loop() override;
+                void set_pico_io_extension(esphome::pico_io_extension::PicoIOExtension *ext);
+                void on_key_press(uint8_t keycode, uint8_t modifiers);
+                void set_pin(uint8_t pin, bool state);
+                void set_vault_door_state(const std::string &state);
+                void set_open_vault_door_switch(esphome::switch_::Switch *sw) { open_vault_door_switch_ = sw; }
+                void set_close_vault_door_switch(esphome::switch_::Switch *sw) { close_vault_door_switch_ = sw; }
+                void set_red_light_pin(int pin) { red_light_pin_ = pin; }
+                void set_green_light_pin(int pin) { green_light_pin_ = pin; }
 
-        private:
+    private:
             esphome::pico_io_extension::PicoIOExtension *pico_io_ext_ = nullptr;
             esp_lcd_panel_handle_t lcd_panel = nullptr;
             i2c_master_bus_handle_t my_bus = nullptr;
@@ -45,6 +47,15 @@ namespace esphome
             std::vector<MenuEntry> menu_;
             esphome::switch_::Switch *open_vault_door_switch_ = nullptr;
             esphome::switch_::Switch *close_vault_door_switch_ = nullptr;
+            // LED blink state
+            uint32_t get_millis();
+            void handle_blink();
+            int blink_active_ = 0; // 0 means inactive, otherwise pin number
+            int red_light_pin_ = 17;
+            int green_light_pin_ = 21;
+            uint32_t blink_start_ms_ = 0;
+            uint32_t last_blink_ms_ = 0;
+            bool led_state_ = false;
         };
     } // namespace robco_display
 } // namespace esphome
