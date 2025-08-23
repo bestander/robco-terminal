@@ -1,4 +1,3 @@
-#include "esphome/components/switch/switch.h"
 #include "esphome/core/automation.h"
 #pragma once
 #include "esphome/core/component.h"
@@ -27,8 +26,6 @@ namespace esphome
                 void on_key_press(uint8_t keycode, uint8_t modifiers);
                 void set_pin(uint8_t pin, bool state);
                 void set_vault_door_state(const std::string &state);
-                void set_open_vault_door_switch(esphome::switch_::Switch *sw) { open_vault_door_switch_ = sw; }
-                void set_close_vault_door_switch(esphome::switch_::Switch *sw) { close_vault_door_switch_ = sw; }
                 void set_red_light_pin(int pin) { red_light_pin_ = pin; }
                 void set_green_light_pin(int pin) { green_light_pin_ = pin; }
 
@@ -45,8 +42,6 @@ namespace esphome
             void render_menu();
             std::string vault_door_state_ = "Unknown";
             std::vector<MenuEntry> menu_;
-            esphome::switch_::Switch *open_vault_door_switch_ = nullptr;
-            esphome::switch_::Switch *close_vault_door_switch_ = nullptr;
             // LED blink state
             uint32_t get_millis();
             void handle_blink();

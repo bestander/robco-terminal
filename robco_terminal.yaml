@@ -78,28 +78,8 @@ pico_io_extension:
 robco_display:
   id: test
   pico_io_extension: pico_io
-  open_vault_door_switch: open_vault_door_switch
-  close_vault_door_switch: close_vault_door_switch
   red_light_pin: 21
   green_light_pin: 17
-
-switch:
-  - platform: template
-    name: "Open Vault Door"
-    id: open_vault_door_switch
-    turn_on_action:
-      - mqtt.publish:
-          topic: garage/door/set
-          payload: open
-      - switch.turn_off: open_vault_door_switch
-  - platform: template
-    name: "Close Vault Door"
-    id: close_vault_door_switch
-    turn_on_action:
-      - mqtt.publish:
-          topic: garage/door/set
-          payload: close
-      - switch.turn_off: close_vault_door_switch
 
 text_sensor:
   - platform: mqtt_subscribe

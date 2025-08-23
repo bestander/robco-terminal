@@ -17,6 +17,14 @@ struct MenuEntry {
 class MenuState {
 public:
     MenuState();
+    // Password entry mode
+    void start_password_entry(const std::string& prompt);
+    void append_password_char(char c);
+    void remove_password_char();
+    bool is_password_entry_mode() const;
+    std::string get_password() const;
+    void end_password_entry();
+    std::string get_password_prompt() const;
     void set_header(const std::vector<std::string>& header);
     void set_boot_messages(const std::vector<std::string>& messages);
     void set_menu(const std::vector<MenuEntry>& menu);
@@ -43,4 +51,8 @@ private:
     std::vector<int> menu_stack_;
     std::vector<std::string> logs_;
     std::string status_value_;
+    // Password entry state
+    bool password_entry_mode_ = false;
+    std::string password_;
+    std::string password_prompt_;
 };

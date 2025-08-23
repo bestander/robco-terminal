@@ -12,8 +12,6 @@ from esphome.components import switch
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(RobcoDisplayComponent),
     cv.Optional("pico_io_extension"): cv.use_id(PicoIOExtension),
-    cv.Optional("open_vault_door_switch"): cv.use_id(switch.Switch),
-    cv.Optional("close_vault_door_switch"): cv.use_id(switch.Switch),
     cv.Optional("red_light_pin", default=17): cv.int_,
     cv.Optional("green_light_pin", default=21): cv.int_,
 })
@@ -24,12 +22,6 @@ def to_code(config):
     if "pico_io_extension" in config:
         ext = yield cg.get_variable(config["pico_io_extension"])
         cg.add(var.set_pico_io_extension(ext))
-    if "open_vault_door_switch" in config:
-        sw = yield cg.get_variable(config["open_vault_door_switch"])
-        cg.add(var.set_open_vault_door_switch(sw))
-    if "close_vault_door_switch" in config:
-        sw = yield cg.get_variable(config["close_vault_door_switch"])
-        cg.add(var.set_close_vault_door_switch(sw))
     cg.add(var.set_red_light_pin(config.get("red_light_pin", 17)))
     cg.add(var.set_green_light_pin(config.get("green_light_pin", 21)))
     yield cg.register_component(var, config)

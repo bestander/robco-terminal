@@ -3,6 +3,40 @@
 
 MenuState::MenuState() {}
 
+void MenuState::start_password_entry(const std::string& prompt) {
+    password_entry_mode_ = true;
+    password_.clear();
+    password_prompt_ = prompt;
+}
+
+void MenuState::append_password_char(char c) {
+    if (password_entry_mode_)
+        password_ += c;
+}
+
+void MenuState::remove_password_char() {
+    if (password_entry_mode_ && !password_.empty())
+        password_.pop_back();
+}
+
+bool MenuState::is_password_entry_mode() const {
+    return password_entry_mode_;
+}
+
+std::string MenuState::get_password() const {
+    return password_;
+}
+
+void MenuState::end_password_entry() {
+    password_entry_mode_ = false;
+    password_.clear();
+    password_prompt_.clear();
+}
+
+std::string MenuState::get_password_prompt() const {
+    return password_prompt_;
+}
+
 void MenuState::set_boot_messages(const std::vector<std::string>& messages) {
     boot_messages_ = messages;
 }
@@ -93,10 +127,13 @@ std::string MenuState::get_display_text() const {
         for (const auto& line : boot_messages_) text += line + "\n";
         return text;
     }
-    // Find current menu
     std::string header_text;
     for (const auto& header : header_lines_) {
         header_text += header + "\n";
+    }
+    if (password_entry_mode_) {
+        std::string masked(password_.size(), '*');
+        return header_text + password_prompt_ + "\n" + masked;
     }
     const std::vector<MenuEntry>* current_menu = &menu_;
     for (size_t i = 0; i < menu_stack_.size(); ++i) {

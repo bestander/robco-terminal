@@ -2,6 +2,7 @@
 #include "crt_terminal_renderer.h"
 #include "esphome/core/log.h"
 #include "esp_timer.h"
+#include "esphome/components/mqtt/mqtt_client.h"
 
 namespace esphome
 {
@@ -41,24 +42,51 @@ namespace esphome
                     current_menu = &(*current_menu)[idx].subitems;
                 }
             }
-            // Check if action is triggered
-            if (keycode == 0x28 && prev_selected >= 0 && prev_selected < current_menu->size())
-            { // Enter
-                const auto &entry = (*current_menu)[prev_selected];
-                if (entry.title == "Open Vault Door" && open_vault_door_switch_)
-                {
-                    ESP_LOGI(TAG, "Turning on open_vault_door_switch");
-                    open_vault_door_switch_->turn_on();
+            // Password entry mode
+            if (menu_state_.is_password_entry_mode())
+            {
+                if (keycode == 0x2A)
+                { // Backspace
+                    menu_state_.remove_password_char();
+                }
+                else if (keycode == 0x28)
+                { // Enter
+                    std::string password = menu_state_.get_password();
+                    // Send MQTT with password as payload
+                    ESP_LOGI(TAG, "Sending MQTT open with password: %s", password.c_str());
+                    esphome::mqtt::global_mqtt_client->publish("garage/door/open", password, 0, false);
                     blink_active_ = green_light_pin_;
                     blink_start_ms_ = get_millis();
                     last_blink_ms_ = get_millis();
                     led_state_ = false;
                     set_pin(blink_active_, 0);
+                    menu_state_.end_password_entry();
                 }
-                else if (entry.title == "Close Vault Door" && close_vault_door_switch_)
+                else if (keycode >= 0x04 && keycode <= 0x1D)
+                { // a-z
+                    char c = 'a' + (keycode - 0x04);
+                    menu_state_.append_password_char(c);
+                }
+                else if (keycode >= 0x1E && keycode <= 0x27)
+                { // 1-9,0
+                    char c = (keycode == 0x27) ? '0' : '1' + (keycode - 0x1E);
+                    menu_state_.append_password_char(c);
+                }
+                render_menu();
+                return;
+            }
+            // Check if action is triggered
+            if (keycode == 0x28 && prev_selected >= 0 && prev_selected < current_menu->size())
+            {
+                const auto &entry = (*current_menu)[prev_selected];
+                if (entry.title == "Open Vault Door")
                 {
-                    ESP_LOGI(TAG, "Turning on close_vault_door_switch");
-                    close_vault_door_switch_->turn_on();
+                    menu_state_.start_password_entry("Enter password to open vault door:");
+                }
+                else if (entry.title == "Close Vault Door")
+                {
+                    ESP_LOGI(TAG, "Closing vault door");
+                    esphome::mqtt::global_mqtt_client->publish("garage/door/close", std::string(""), 0, false);
                     blink_active_ = red_light_pin_;
                     blink_start_ms_ = get_millis();
                     last_blink_ms_ = get_millis();
@@ -124,7 +152,10 @@ namespace esphome
             // Menu structure
             menu_ = {
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"Vault Door Control", MenuEntry::Type::SUBMENU, {{"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Close Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
+                {"Vault Door Control", MenuEntry::Type::SUBMENU, {
+                    {"Open Vault Door", MenuEntry::Type::ACTION, {}, {}, ""},
+                    {"", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"Close Vault Door", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},
                 {"System Status", MenuEntry::Type::SUBMENU, {{"Power: Stable", MenuEntry::Type::STATIC, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Door", MenuEntry::Type::STATUS, {}, {}, vault_door_state_}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Security: Nominal", MenuEntry::Type::STATIC, {}, {}, ""}}, {}, ""},
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},

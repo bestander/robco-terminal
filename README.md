@@ -37,12 +37,100 @@ A fully functional Fallout-style terminal interface for ESP32-S3 with 7" display
 - File-based storage
 - Terminal-style editing interface
 
+## Configuration
+
+```yaml
 wifi_password: "your_wifi_password"
 api_encryption_key: "32-character-key-generated-by-esphome"
 ota_password: "your_ota_password"
 mqtt_broker: "192.168.1.100"  # Your Home Assistant IP
 mqtt_username: "your_mqtt_username"
 mqtt_password: "your_mqtt_password"
+```
+
+## Home Assistant: MQTT Configuration
+
+1. **Install the Mosquitto broker add-on** (recommended):
+   - Go to **Settings > Add-ons > Add-on Store**.
+   - Search for "Mosquitto broker" and install it.
+   - Start the add-on.
+
+2. **Enable the MQTT integration:**
+   - Go to **Settings > Devices & Services**.
+   - Click **Add Integration** and search for "MQTT".
+   - Enter your broker details (host, port, username, password) matching your ESPHome YAML configuration.
+   - Save and finish setup.
+
+3. **Verify connection:**
+   - Go to **Settings > Devices & Services > MQTT**.
+   - Click **Configure** and use "Listen to a topic" (enter `#` to see all messages) to verify ESPHome is publishing.
+
+4. **Troubleshooting:**
+   - Check the Mosquitto broker logs in **Settings > Add-ons > Mosquitto broker > Log**.
+   - Ensure your ESPHome device and Home Assistant are on the same network and credentials match.
+
+For more details, see the [Home Assistant MQTT docs](https://www.home-assistant.io/integrations/mqtt/).
+
+## Home Assistant: Example MQTT Scripts & Automations
+
+### Required MQTT Entities
+
+1. **Script: Publish Door State**
+
+Add this to your `scripts.yaml`:
+```yaml
+publish_garage_state:
+  alias: Publish Garage Door State
+  sequence:
+    - service: mqtt.publish
+      data:
+        topic: garage/state
+        payload: "{{ state }}"
+```
+
+Call this script with `state: opened` or `state: closed` when your automation opens/closes the door.
+
+2. **Script: Listen for Open Command with Password**
+
+Add this to your `automations.yaml`:
+```yaml
+- alias: Open Garage Door via MQTT Password
+  trigger:
+    - platform: mqtt
+      topic: garage/door/open
+  condition:
+    - condition: template
+      value_template: "{{ trigger.payload == 'YOUR_PASSWORD' }}"
+  action:
+    - service: script.publish_garage_state
+      data:
+        state: opened
+    # Add your open door action here
+```
+
+3. **Script: Listen for Close Command**
+
+Add this to your `automations.yaml`:
+```yaml
+- alias: Close Garage Door via MQTT
+  trigger:
+    - platform: mqtt
+      topic: garage/door/close
+  action:
+    - service: script.publish_garage_state
+      data:
+        state: closed
+    # Add your close door action here
+```
+
+**Note:**
+- Replace `YOUR_PASSWORD` with your actual password.
+- Add your actual door open/close service calls in the `action` sections.
+- Make sure the `script.publish_garage_state` script is available in Home Assistant.
+
+For more details, see the [Home Assistant MQTT docs](https://www.home-assistant.io/integrations/mqtt/).
+
+## Troubleshooting
 
 ### Display Issues
 - Check SPI pin connections
@@ -68,6 +156,32 @@ logger:
   level: VERBOSE
   logs:
     robco_terminal: VERBOSE
+```
+
+## ESPHome Compile and Run
+
+To compile the firmware:
+
+```
+source .venv/bin/activate && esphome compile robco_terminal.yaml
+```
+
+To upload and run the firmware (OTA or USB):
+
+```
+source .venv/bin/activate && esphome run robco_terminal.yaml
+```
+
+To upload via OTA (WiFi):
+
+```
+source .venv/bin/activate && esphome upload robco_terminal.yaml --device robco-terminal.local
+```
+
+To view device logs:
+
+```
+source .venv/bin/activate && esphome logs robco_terminal.yaml
 ```
 
 ## Contributing
