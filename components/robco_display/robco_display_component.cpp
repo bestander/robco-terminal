@@ -159,7 +159,13 @@ namespace esphome
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},
                 {"System Status", MenuEntry::Type::SUBMENU, {{"Power: Stable", MenuEntry::Type::STATIC, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Door", MenuEntry::Type::STATUS, {}, {}, vault_door_state_}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Security: Nominal", MenuEntry::Type::STATIC, {}, {}, ""}}, {}, ""},
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},
-                {"Overseer Logs", MenuEntry::Type::SUBMENU, {{"Read Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Add Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}, {"", MenuEntry::Type::STATIC, {}, {}, ""}, {"Remove Log Entry", MenuEntry::Type::ACTION, {}, {}, ""}}, {}, ""},
+                {"Overseer Logs", MenuEntry::Type::SUBMENU, {
+                    {"CORRUPTED MEMORY BANK", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"##??DATA ERROR??##", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"@!X1Z!@#%$*", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"??ERROR??", MenuEntry::Type::STATIC, {}, {}, ""},
+                    {"DATA_CORRUPT A9!B7#C", MenuEntry::Type::STATIC, {}, {}, ""}
+                }, {}, ""},
                 {"", MenuEntry::Type::STATIC, {}, {}, ""},
             };
             menu_state_.set_menu(menu_);
