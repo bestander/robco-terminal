@@ -23,7 +23,8 @@ A fully functional Fallout-style terminal interface for ESP32-S3 with 7" display
 
 ## 3D Print case
 
-See [assets/stl](./assets/stl) for all the 3D printing parts, feel free to fork in [onshape](https://cad.onshape.com/documents/a596f804bfbdc16828dea787/w/d24c8487b87e16e2d8c3f80b/e/312ff6ea062bc67b4dcde5d5?renderMode=0&uiState=68afb409a4b52d6712443022).
+See [assets/stl](./assets/stl) for all the 3D printed parts. You'll need a few screws to connect the pieces and a drop of glue to secure wall rest to the keyboard part to prevent it from shaking. 
+Feel free to fork the design in [onshape](https://cad.onshape.com/documents/a596f804bfbdc16828dea787/w/d24c8487b87e16e2d8c3f80b/e/312ff6ea062bc67b4dcde5d5?renderMode=0&uiState=68afb409a4b52d6712443022).
 
 ## Features
 
