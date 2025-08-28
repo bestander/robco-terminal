@@ -13,8 +13,8 @@ A fully functional Fallout-style terminal interface for ESP32-S3 with 7" display
 ## Hardware Reference
 
 **ESP32-S3 HMI Board (used in this project):**
-- [AliExpress product link](https://www.aliexpress.us/item/3256807606021455.html)
-  - Features: ESP32-S3, 7" 800x480 RGB LCD, 8MB PSRAM, 16MB Flash, touch support, USB host, multiple GPIOs, ideal for HMI and display projects.
+
+- [7" 800*480 with ESP32-S3](https://www.aliexpress.us/item/3256807606021455.html)
 - USB keyboard [40% mechanical fits the STL](https://www.aliexpress.us/item/3256808357667662.html)
 - [Raspberry Pi Pico](https://www.amazon.com/Raspberry-Pi-Pico/dp/B09KVB8LVR) to be used as extension board and a USB HID master
 - [Micro USB OTG cable](https://www.amazon.com/dp/B0BX9FSCFH) to connect the keyboard to Pico
