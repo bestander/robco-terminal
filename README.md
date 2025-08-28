@@ -44,7 +44,7 @@ Feel free to fork the design in [onshape](https://cad.onshape.com/documents/a596
 - USB keyboard support (Arrow keys, Enter, Escape)
 - Context-sensitive menu items
 
-✅ **Text Editor**
+✅ **Text Editor** (not implemented)
 - Built-in log editor
 - File-based storage
 - Terminal-style editing interface
