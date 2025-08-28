@@ -2,6 +2,8 @@
 
 A fully functional Fallout-style terminal interface for ESP32-S3 with 7" display, featuring authentic RobCo Industries theming, MQTT integration with Home Assistant, and text editor capabilities.
 
+[![Demo](assets/demo.gif)](assets/demo.gif)
+
 ## Hardware Requirements
 
 - ESP32-S3 HMI 8M PSRAM 16M Flash with 7" 800x480 RGB LCD display
@@ -11,8 +13,19 @@ A fully functional Fallout-style terminal interface for ESP32-S3 with 7" display
 ## Hardware Reference
 
 **ESP32-S3 HMI Board (used in this project):**
-- [AliExpress product link](https://www.aliexpress.us/item/3256807606021455.html?spm=a2g0o.order_list.order_list_main.11.21ef1802b2SiYk&gatewayAdapt=glo2usa)
-- Features: ESP32-S3, 7" 800x480 RGB LCD, 8MB PSRAM, 16MB Flash, touch support, USB host, multiple GPIOs, ideal for HMI and display projects.
+- [AliExpress product link](https://www.aliexpress.us/item/3256807606021455.html)
+  - Features: ESP32-S3, 7" 800x480 RGB LCD, 8MB PSRAM, 16MB Flash, touch support, USB host, multiple GPIOs, ideal for HMI and display projects.
+- USB keyboard [40% mechanical fits the STL](https://www.aliexpress.us/item/3256808357667662.html)
+- [Raspberry Pi Pico](https://www.amazon.com/Raspberry-Pi-Pico/dp/B09KVB8LVR) to be used as extension board and a USB HID master
+- [Micro USB OTG cable](https://www.amazon.com/dp/B0BX9FSCFH) to connect the keyboard to Pico
+- USB-A - USB-C cable to connect the keyboard to the OTG cable
+- [Right angle USBC cable](https://www.amazon.com/dp/B0DQS6FTX3) to power and flash the ESP32-S3 board when mounted
+- [Frensel lense](https://www.amazon.com/dp/B015NR7XGS) for CRT display affect
+- 2 LED and 100-150 Ohm resistors and wire soldered to pins 17 and 21 on Pi Pico for additional signaling
+
+## 3D Print case
+
+See assets/stl for all the 3D printing parts originals in [onshape](https://cad.onshape.com/documents/a596f804bfbdc16828dea787/w/d24c8487b87e16e2d8c3f80b/e/312ff6ea062bc67b4dcde5d5?renderMode=0&uiState=68afb409a4b52d6712443022).
 
 ## Features
 
@@ -191,3 +204,5 @@ Feel free to submit issues and enhancement requests!
 ## License
 
 This project is for educational and personal use. Fallout and RobCo Industries are trademarks of Bethesda Softworks.
+
+The 3d design is derived from a very talented and inspiring [work by Lewin Day](https://hackaday.com/2024/05/21/home-automation-terminal-has-great-post-apocalyptic-look/).
